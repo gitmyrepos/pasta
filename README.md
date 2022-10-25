@@ -26,7 +26,7 @@ Pasta is useful for:
 - Identifying orphaned functions.
 - Identifying arguments passed into functions.
 - Identifying variables assigned in functions.
-- Provide a better "bird's eye view" of your codebase to get a better     understanding of its architechure 
+- Provide a better "bird's eye view" of your codebase to get a better     understanding of its architecture 
 - Getting new developers up to speed.
 
 Pasta provides a *pretty good estimate* of your project's structure but there may be some issues in identifying nodes, certian variables. These issues will be a further focus of improvement in Pasta.
@@ -170,36 +170,10 @@ Test coverage is 100%. To run:
     make test
 ```
 
-License
------------------------------
-
-Code2flow is licensed under the MIT license.
-Prior to the rewrite in April 2021, code2flow was licensed under LGPL. The last commit under that license was 24b2cb854c6a872ba6e17409fbddb6659bf64d4c. 
-The April 2021 rewrite was substantial, so it's probably reasonable to treat code2flow as completely MIT-licensed.
-
-
-Acknowledgements
------------------------------
-
-
-* In mid 2021, Code2flow was rewritten, and two new languages were added. This was prompted and financially supported by the [Sider Corporation](https://siderlabs.com/). 
-* The code2flow pip name was graciously transferred to this project from [Dheeraj Nair](https://github.com/Dheeraj1998). He was using it for his own (unrelated) [code2flow](https://github.com/Dheeraj1998/code2flow) project. 
-* Many others have contributed through bug fixes, cleanups, and identifying issues. Thank you!!!
-
-
-Unrelated projects
------------------------
-
-The name, "code2flow", has been used for several unrelated projects. Specifically, the domain, code2flow.com, has no association with this project. I've never heard anything from them and it doesn't appear like they use anything from here.
-
 
 Feedback / Issues / Contact
 -----------------------------
 
-If you have an issue using code2flow or a feature request, please post it in the issues tab. In general, I don't provide help over email. Answering a question publicly helps way more people. For everything else, please do email! scottmrogowski@gmail.com
+If you have an issue using code2flow or a feature request, please post it in the issues tab.
 
 
-Feature Requests
-----------------
-
-Email me. Usually, I'm spread thin across a lot of projects, so I will, unfortunately, turn down most requests. However, I am open to paid development for compelling features.
