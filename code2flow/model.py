@@ -260,9 +260,10 @@ class Call():
 
 
 class Node():
-    def __init__(self, token, calls, variables, parent, import_tokens=None,
+    def __init__(self, token, args, calls, variables, parent, import_tokens=None,
                  line_number=None, is_constructor=False):
         self.token = token
+        self.args = args
         self.line_number = line_number
         self.calls = calls
         self.variables = variables
@@ -345,7 +346,36 @@ class Node():
         :rtype: str
         """
         if self.line_number is not None:
-            return f"{self.line_number}: {self.token}()"
+
+            tbl = f"""
+                <<TABLE CELLSPACING='0' CELLPADDING='4' BORDER='1'>
+                    <TR>
+                        <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
+                        <TD ALIGN='RIGHT' BORDER='0'><B>{self.token}()</B></TD>
+                    </TR>
+                    <TR>
+                """
+            tbl += """
+                        <TD>
+                            <TABLE CELLSPACING='0' BORDER='0' CELLPADDING='2'>
+                                <TR>
+                                    <TD ALIGN='TEXT' BORDER='1'><B>Arguments: </B></TD>
+                                </TR>
+                                <TR>
+                                    <TD ALIGN='LEFT'>"""
+            for arg in self.args:
+                tbl += f"""{arg}<BR ALIGN='LEFT'/>"""
+
+            tbl += """
+                                    </TD>
+                                </TR>
+                            </TABLE>
+                        </TD>
+                        <TD></TD>
+                    </TR>
+                </TABLE>>
+                """
+            return tbl.strip('"')
         return f"{self.token}()"
 
     def remove_from_parent(self):
@@ -409,8 +439,9 @@ class Node():
         attributes = {
             'label': self.label(),
             'name': self.name(),
-            'shape': "rect",
+            'shape': "plaintext",
             'style': 'rounded,filled',
+            'fontname': 'Arial',
             'fillcolor': NODE_COLOR,
         }
         if self.is_trunk:
@@ -420,7 +451,10 @@ class Node():
 
         ret = self.uid + ' ['
         for k, v in attributes.items():
-            ret += f'{k}="{v}" '
+            if k == 'label':
+                ret += f'{k}={v} '
+            else:
+                ret += f'{k}="{v}" '
         ret += ']'
         return ret
 

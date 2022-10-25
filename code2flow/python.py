@@ -103,7 +103,21 @@ def process_import(element):
         ret.append(Variable(token, points_to=rhs, line_number=element.lineno))
     return ret
 
+def make_arguments(arguments):
 
+    args_obj_list = arguments.args
+    arg_name_list = []
+
+    for arg in args_obj_list:
+        
+        if arg.annotation != None:
+            print('arg: ', arg.arg, ' has annotation: ', arg.annotation.id)
+        
+        arg_name_list.append(arg.arg)
+
+    return arg_name_list
+            
+        
 def make_local_variables(lines, parent):
     """
     Given an ast of all the lines in a function, generate a list of
@@ -201,10 +215,12 @@ class Python(BaseLanguage):
         :rtype: list[Node]
         """
         token = tree.name
+        arguments = make_arguments(tree.args)
         line_number = tree.lineno
         calls = make_calls(tree.body)
         variables = make_local_variables(tree.body, parent)
         is_constructor = False
+
         if parent.group_type == GROUP_TYPE.CLASS and token in ['__init__', '__new__']:
             is_constructor = True
 
@@ -212,7 +228,7 @@ class Python(BaseLanguage):
         if parent.group_type == GROUP_TYPE.FILE:
             import_tokens = [djoin(parent.token, token)]
 
-        return [Node(token, calls, variables, parent, import_tokens=import_tokens,
+        return [Node(token, arguments, calls, variables, parent, import_tokens=import_tokens,
                      line_number=line_number, is_constructor=is_constructor)]
 
     @staticmethod
@@ -229,7 +245,7 @@ class Python(BaseLanguage):
         line_number = 0
         calls = make_calls(lines)
         variables = make_local_variables(lines, parent)
-        return Node(token, calls, variables, line_number=line_number, parent=parent)
+        return Node(token, [], calls, variables, line_number=line_number, parent=parent)
 
     @staticmethod
     def make_class_group(tree, parent):
