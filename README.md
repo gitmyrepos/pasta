@@ -31,16 +31,7 @@ Pasta is useful for:
 
 Pasta provides a *pretty good estimate* of your project's structure but there may be some issues in identifying nodes, certian variables. These issues will be a further focus of improvement in Pasta.
 
-*(Below: Code2flow running against a subset of itself `code2flow code2flow/engine.py code2flow/python.py --target-function=code2flow --downstream-depth=3`)*
-
-![code2flow running against a subset of itself](https://raw.githubusercontent.com/scottrogowski/code2flow/master/assets/code2flow_output.png)
-
-Installation
-------------
-
-```bash
-pip3 install code2flow
-```
+---
 
 If you don't have it already, you will also need to install graphviz. Installation instructions can be found [here](https://graphviz.org/download/).
 
@@ -108,22 +99,6 @@ Detailed algorithm:
 7. Trim orphaned nodes and groups.
 8. Output results.
 
-Why is it impossible to generate a perfect call graph?
-----------------
-
-Consider this toy example in Python
-```python
-def func_factory(param):
-    if param < .5:
-        return func_a
-    else:
-        return func_b
-
-func = func_factory(important_variable)
-func()
-```
-
-We have no way of knowing whether `func` will point to `func_a` or `func_b` until runtime. In practice, ambiguity like this is common and is present in most non-trivial applications.
 
 Known limitations
 -----------------
@@ -136,44 +111,5 @@ Code2flow is internally powered by ASTs. Most limitations stem from a token not 
 * Anonymous or generated functions are skipped. This includes lambdas and factories.
 * If a function is renamed, either explicitly or by being passed around as a parameter, it will be skipped.
 
-
-As an imported library
------------------
-
-You can work with code2flow as an imported Python library in much the same way as you work with it
-from the CLI.
-
-```python
-import code2flow
-code2flow.code2flow(['path/to/filea', 'path/to/fileb'], 'path/to/outputfile')
-```
-
-The keyword arguments to `code2flow.code2flow` are roughly the same as the CLI
-parameters. To see all available parameters, refer to the code2flow function in [engine.py](https://github.com/scottrogowski/code2flow/blob/master/code2flow/engine.py).
-
-
-How to contribute
------------------------
-
-1. **Open an issue**: Code2flow is not perfect and there is a lot that can be improved. If you find a problem parsing your source that you can identify with a simplified example, please open an issue.
-2. **Create a PR**: Even better, if you have a fix for the issue you identified that passes unit tests, please open a PR. 
-3. **Add a language**: While dense, each language implementation is between 250-400 lines of code including comments. If you want to implement another language, the existing implementations can be your guide.
-
-
-Unit tests
-------------------
-
-Test coverage is 100%. To run:
-
-```bash
-    pip install -r requirements_dev.txt
-    make test
-```
-
-
-Feedback / Issues / Contact
------------------------------
-
-If you have an issue using code2flow or a feature request, please post it in the issues tab.
 
 
