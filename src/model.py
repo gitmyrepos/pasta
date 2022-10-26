@@ -347,34 +347,29 @@ class Node():
         """
         if self.line_number is not None:
 
-            tbl = f"""
-                <<TABLE CELLSPACING='0' CELLPADDING='4' BORDER='1'>
-                    <TR>
-                        <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
-                        <TD ALIGN='RIGHT' BORDER='0'><B>{self.token}()</B></TD>
-                    </TR>
-                    <TR>
-                """
-            tbl += """
-                        <TD>
-                            <TABLE CELLSPACING='0' BORDER='0' CELLPADDING='2'>
-                                <TR>
-                                    <TD ALIGN='TEXT' BORDER='1'><B>Arguments: </B></TD>
-                                </TR>
-                                <TR>
-                                    <TD ALIGN='LEFT'>"""
+            tbl = f"""<<TABLE CELLSPACING='0' CELLPADDING='4' BORDER='1'>
+                        <TR>
+                            <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
+                            <TD ALIGN='RIGHT' BORDER='0'><B>{self.token}()</B></TD>
+                        </TR>
+                        <TR>       
+                            <TD ALIGN='TEXT' BORDER='1'><B>Arguments: </B></TD>
+                            <TD ALIGN='TEXT' BORDER='1'><B>Variables: </B></TD>
+                        </TR>
+                        <TR>        
+                            <TD>"""
+
             for arg in self.args:
                 tbl += f"""{arg}<BR ALIGN='LEFT'/>"""
 
-            tbl += """
-                                    </TD>
-                                </TR>
-                            </TABLE>
-                        </TD>
-                        <TD></TD>
+            tbl += """</TD><TD>"""
+
+            for var in self.variables:
+                tbl += f"""{var.token}<BR ALIGN='LEFT'/>"""
+
+            tbl += """</TD>
                     </TR>
-                </TABLE>>
-                """
+                </TABLE>>"""
             return tbl.strip('"')
         return f"{self.token}()"
 
