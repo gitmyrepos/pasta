@@ -7,7 +7,7 @@ import pytest
 
 sys.path.append(os.getcwd().split('/tests')[0])
 
-from code2flow.engine import code2flow, LanguageParams, SubsetParams
+from src.engine import pasta, LanguageParams, SubsetParams
 from tests.testdata import testdata
 
 LANGUAGES = (
@@ -69,7 +69,7 @@ def test_all(test_tup):
                                                     int(kwargs.pop('upstream_depth', 0)),
                                                     int(kwargs.pop('downstream_depth', 0)))
     output_file = io.StringIO()
-    code2flow([directory_path], output_file, language, **kwargs)
+    pasta([directory_path], output_file, language, **kwargs)
 
     generated_edges = get_edges_set_from_file(output_file)
     print("generated_edges eq", file=sys.stderr)
