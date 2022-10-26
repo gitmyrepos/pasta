@@ -357,12 +357,12 @@ class Node():
                             <TD ALIGN='TEXT' BORDER='1'><B>Variables: </B></TD>
                         </TR>
                         <TR>        
-                            <TD>"""
+                            <TD VALIGN='TOP'>"""
 
             for arg in self.args:
                 tbl += f"""{arg}<BR ALIGN='LEFT'/>"""
 
-            tbl += """</TD><TD>"""
+            tbl += """</TD><TD VALIGN='TOP'>"""
 
             for var in self.variables:
                 tbl += f"""{var.token}<BR ALIGN='LEFT'/>"""
