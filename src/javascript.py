@@ -253,7 +253,7 @@ class Javascript(BaseLanguage):
         version = get_acorn_version()
         if not version.startswith('8.'):
             logging.warning("Acorn is required to parse javascript files. "
-                            "Version %r was found but code2flow has only been "
+                            "Version %r was found but pasta has only been "
                             "tested on 8.*", version)
         logging.info("Using Acorn %s" % version)
 
@@ -274,7 +274,7 @@ class Javascript(BaseLanguage):
         except subprocess.CalledProcessError:
             raise AssertionError(
                 "Acorn could not parse file %r. You may have a JS syntax error or "
-                "if this is an es6-style source, you may need to run code2flow "
+                "if this is an es6-style source, you may need to run pasta "
                 "with --source-type=module. "
                 "For more detail, try running the command "
                 "\n  acorn %s\n"

@@ -2008,7 +2008,7 @@ testdata = {
         {
             "test_name": "publicprivateprotected",
             "directory": "publicprivateprotected",
-            "comment": "Just ensuring that access modifiers don't confuse code2flow",
+            "comment": "Just ensuring that access modifiers don't confuse pasta",
             "expected_edges": [["publicprivateprotected::set_color_weight",
                                 "publicprivateprotected::Fruit.set_weight"],
                                ["publicprivateprotected::(global)",

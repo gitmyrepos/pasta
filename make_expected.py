@@ -5,7 +5,7 @@ import pprint
 import sys
 import tempfile
 
-from code2flow.engine import main
+from src.engine import main
 from tests.test_graphs import get_edges_set_from_file, get_nodes_set_from_file
 
 DESCRIPTION = """

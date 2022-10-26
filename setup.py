@@ -1,25 +1,25 @@
 from setuptools import setup
 
-from code2flow.engine import VERSION
+from src.engine import VERSION
 
-url_base = 'https://github.com/scottrogowski/code2flow'
-download_url = '%s/archive/code2flow-%s.tar.gz' % (url_base, VERSION)
+url_base = 'https://github.com/gitmyrepos/pasta'
+download_url = '%s/archive/pasta-%s.tar.gz' % (url_base, VERSION)
 
 setup(
-    name='code2flow',
+    name='pasta',
     version=VERSION,
     description='Visualize your source code as DOT flowcharts',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     entry_points={
-        'console_scripts': ['code2flow=code2flow.engine:main'],
+        'console_scripts': ['pasta=src.engine:main'],
     },
     license='MIT',
-    author='Scott Rogowski',
-    author_email='scottmrogowski@gmail.com',
+    author='gitmyrepos',
+    author_email='',
     url=url_base,
     download_url=download_url,
-    packages=['code2flow'],
+    packages=['pasta'],
     python_requires='>=3.6',
     include_package_data=True,
     classifiers=[
