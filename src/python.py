@@ -1,6 +1,7 @@
 import ast
 import logging
 import os
+import inspect
 
 from .model import (OWNER_CONST, GROUP_TYPE, Group, Node, Call, Variable,
                     BaseLanguage, djoin)
@@ -94,12 +95,17 @@ def process_import(element):
     ret = []
 
     for single_import in element.names:
+        #print("import:  ", single_import)
+
         assert isinstance(single_import, ast.alias)
         token = single_import.asname or single_import.name
         rhs = single_import.name
+        #print('token: ', token)
+        #print('rhs: ', rhs)
 
         if hasattr(element, 'module') and element.module:
             rhs = djoin(element.module, rhs)
+            #print('module: ', rhs)
         ret.append(Variable(token, points_to=rhs, line_number=element.lineno))
     return ret
 
@@ -111,7 +117,8 @@ def make_arguments(arguments):
     for arg in args_obj_list:
         
         if arg.annotation != None:
-            print('arg: ', arg.arg, ' has annotation: ', arg.annotation.id)
+            #print('arg: ', arg.arg, ' has annotation: ', arg.annotation.id)
+            x = 1
         
         arg_name_list.append(arg.arg)
 
@@ -130,6 +137,18 @@ def make_local_variables(lines, parent):
     :rtype: list[Variable]
     """
     variables = []
+
+    #print('ABOUT TO CREATE VARIABLES')
+    line_types = []
+    #for ast in lines:
+    #    if ast.targets not in line_types:
+            #print(ast.targets[0].id)
+    #        line_types.append(ast.targets)
+
+    #print('Line Types: ',line_types)
+
+
+
     for tree in lines:
         for element in ast.walk(tree):
             if type(element) == ast.Assign:
@@ -139,7 +158,10 @@ def make_local_variables(lines, parent):
     if parent.group_type == GROUP_TYPE.CLASS:
         variables.append(Variable('self', parent, lines[0].lineno))
 
+    #print('This is the list of vars: ', variables)
     variables = list(filter(None, variables))
+
+    #print('This is the list Filtered: ', variables)
     return variables
 
 
@@ -214,6 +236,48 @@ class Python(BaseLanguage):
         :param parent Group:
         :rtype: list[Node]
         """
+
+        asttype = {
+            'Assign': 'targets',
+            'Expr': 'value',
+            'ImportFrom': 'module',
+            'Import': 'names',
+            'Try': 'body',
+            'If': 'test',
+            'Return': 'value',
+            'Name': 'id'
+        }
+
+        #print('TREE NAME: ', tree.name)
+        for item in tree.body:
+            # determine what type of ast object the item is
+            itemType = type(item).__name__
+            
+            # if it is a try or if block then more logic needs to be done and new nodes need to be created
+            if itemType == 'Try' or itemType == 'If':
+                #print(item)
+                x = 1
+            
+            elif itemType == 'Assign':
+                targetType = type(item.targets).__name__
+                #print('targetType: ', targetType)
+                assignVars = []
+                for vars in item.targets:
+
+                    if type(vars).__name__ == 'Name':
+                        #print('targets: ', vars.id) 
+                        #print('value: ', item.value)
+                        x = 1
+                    elif type(vars).__name__ == 'Attribute':
+                        #print('attribute!!!!!!!')
+                        #print(vars.value.func.value.id)
+                        x = 1
+                    elif type(vars).__name__ == 'Tuple':
+                        #print('TUPLE!!!!!!!!!!!')
+                        #print('targets: ', vars.elts)
+                        x = 1
+
+
         token = tree.name
         arguments = make_arguments(tree.args)
         line_number = tree.lineno

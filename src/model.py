@@ -345,12 +345,13 @@ class Node():
         Labels are what you see on the graph
         :rtype: str
         """
+        #print('this is my parent: ', self.parent.token)
         if self.line_number is not None:
 
             tbl = f"""<<TABLE CELLSPACING='0' CELLPADDING='4' BORDER='1'>
                         <TR>
                             <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
-                            <TD ALIGN='RIGHT' BORDER='0'><B>{self.token}()</B></TD>
+                            <TD ALIGN='RIGHT' BORDER='0'><B>{self.token}() -- </B></TD>
                         </TR>
                         <TR>       
                             <TD ALIGN='TEXT' BORDER='1'><B>Arguments: </B></TD>
