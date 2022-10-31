@@ -352,6 +352,8 @@ def make_file_group(tree, filename, extension):
 
     file_group = Group(token, group_type, display_name, import_tokens,
                        line_number, parent=None)
+    
+    print('Length of Node Trees: ',len(node_trees))
     for node_tree in node_trees:
         for new_node in language.make_nodes(node_tree, parent=file_group):
             file_group.add_node(new_node)
