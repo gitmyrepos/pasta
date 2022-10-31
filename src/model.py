@@ -464,7 +464,6 @@ class Node():
             'label': self.label(),
             'name': self.name(),
         }
- 
 
 
 def _wrap_as_variables(sequence):
