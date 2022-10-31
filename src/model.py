@@ -260,15 +260,16 @@ class Call():
 
 
 class Node():
-    def __init__(self, token, args, calls, variables, parent, import_tokens=None,
+    def __init__(self, nodeName, parentNode, childrenNodes, import_tokens=None,
                  line_number=None, is_constructor=False):
-        self.token = token
-        self.args = args
+        self.nodeName = nodeName
+        #self.args = args
         self.line_number = line_number
-        self.calls = calls
-        self.variables = variables
+        #self.calls = calls Changing this to 'children' to include other types of nodes
+        #self.variables = variables
+        self.childrenNodes = childrenNodes
         self.import_tokens = import_tokens or []
-        self.parent = parent
+        self.parentNode = parentNode
         self.is_constructor = is_constructor
 
         self.uid = "node_" + os.urandom(4).hex()
@@ -464,8 +465,34 @@ class Node():
             'label': self.label(),
             'name': self.name(),
         }
- 
 
+# base class for FxNode and other Fx cont... nodes like end of else, try, except etc.
+class FxBody(Node):
+    def __init__(self, vars, RB, nodeName, parentNode, childrenNodes, import_tokens=None, line_number=None, is_constructor=False, nodeType=None):
+        self.vars = vars
+        self.RB = RB      # RB = Return / Breaks
+        self.nodeType = nodeType  # should be function name this body comes from.
+
+        Node.__init__(nodeName, parentNode, childrenNodes, import_tokens, line_number, is_constructor)
+
+class FxNode(FxBody):
+    def __init__(self, args, vars, RB, Fxhead, nodeName, parentNode, childrenNodes, import_tokens=None,
+                 line_number=None, is_constructor=False, nodeType=None):
+        # FxNode has args
+        self.args = args
+
+        # init fxbody class
+        FxBody.__init__(vars, RB, Fxhead, args, vars, RB, Fxhead, nodeName, parentNode, childrenNodes, import_tokens,
+                 line_number, is_constructor, nodeType)
+
+class IfTryNode(Node):
+    def __init__(self, title, nodeName, parentNode, childrenNodes, import_tokens=None, line_number=None, is_constructor=False, condition=None):
+
+        # add condition if an IF statement, otherwise should just be blank
+        self.title = title # this will display IF/ELSE or TRY/EXCEPT
+        self.condition = condition 
+
+        Node.__init__(nodeName, parentNode, childrenNodes, import_tokens, line_number, is_constructor)
 
 def _wrap_as_variables(sequence):
     """
