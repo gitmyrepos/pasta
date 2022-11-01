@@ -10,7 +10,7 @@ from .model import (OWNER_CONST, GROUP_TYPE, Group, Node, Call, Variable,
 def get_call_from_func_element(func):
     """
     Given a python ast that represents a function call, clear and create our
-    generic Call object. Some calls have no chance at resolution (e.g. array[2](param))
+    generic Call object. Some children have no chance at resolution (e.g. array[2](param))
     so we return nothing instead.
 
     :param func ast:
@@ -39,23 +39,23 @@ def get_call_from_func_element(func):
         return None
 
 
-def make_calls(lines):
+def make_children(lines):
     """
-    Given a list of lines, find all calls in this list.
+    Given a list of lines, find all children in this list.
 
     :param lines list[ast]:
     :rtype: list[Call]
     """
 
-    calls = []
+    children = []
     for tree in lines:
         for element in ast.walk(tree):
             if type(element) != ast.Call:
                 continue
             call = get_call_from_func_element(element.func)
             if call:
-                calls.append(call)
-    return calls
+                children.append(call)
+    return children
 
 
 def process_assign(element):
@@ -230,7 +230,7 @@ class Python(BaseLanguage):
     def make_nodes(tree, parent):
         """
         Given an ast of all the lines in a function, create the node along with the
-        calls and variables internal to it.
+        children and variables internal to it.
 
         :param tree ast:
         :param parent Group:
@@ -281,7 +281,7 @@ class Python(BaseLanguage):
         token = tree.name
         arguments = make_arguments(tree.args)
         line_number = tree.lineno
-        calls = make_calls(tree.body)
+        children = make_children(tree.body)
         variables = make_local_variables(tree.body, parent)
         is_constructor = False
 
@@ -292,7 +292,7 @@ class Python(BaseLanguage):
         if parent.group_type == GROUP_TYPE.FILE:
             import_tokens = [djoin(parent.token, token)]
 
-        return [Node(token, arguments, calls, variables, parent, import_tokens=import_tokens,
+        return [Node(token, children, variables, parent, import_tokens=import_tokens,
                      line_number=line_number, is_constructor=is_constructor)]
 
     @staticmethod
@@ -307,9 +307,9 @@ class Python(BaseLanguage):
         """
         token = "(global)"
         line_number = 0
-        calls = make_calls(lines)
+        children = make_children(lines)
         variables = make_local_variables(lines, parent)
-        return Node(token, [], calls, variables, line_number=line_number, parent=parent)
+        return Node(token, children, variables, parent, line_number=line_number)
 
     @staticmethod
     def make_class_group(tree, parent):

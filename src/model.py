@@ -177,7 +177,7 @@ class Variable():
 
 class Call():
     """
-    Calls represent function call expressions.
+    children represent function call expressions.
     They can be an attribute call like
         object.do_something()
     Or a "naked" call like
@@ -205,7 +205,7 @@ class Call():
 
     def is_attr(self):
         """
-        Attribute calls are like `a.do_something()` rather than `do_something()`
+        Attribute children are like `a.do_something()` rather than `do_something()`
         :rtype: bool
         """
         return self.owner_token is not None
@@ -260,23 +260,23 @@ class Call():
 
 
 class Node():
-    def __init__(self, nodeName, parentNode, childrenNodes, import_tokens=None,
+    def __init__(self, token, children, variables, parent, import_tokens=None,
                  line_number=None, is_constructor=False):
-        self.nodeName = nodeName
+        self.token = token
         #self.args = args
         self.line_number = line_number
         #self.calls = calls Changing this to 'children' to include other types of nodes
-        #self.variables = variables
-        self.childrenNodes = childrenNodes
+        self.variables = variables
+        self.children = children
         self.import_tokens = import_tokens or []
-        self.parentNode = parentNode
+        self.parent = parent
         self.is_constructor = is_constructor
 
         self.uid = "node_" + os.urandom(4).hex()
 
         # Assume it is a leaf and a trunk. These are modified later
-        self.is_leaf = True  # it calls nothing else
-        self.is_trunk = True  # nothing calls it
+        self.is_leaf = True  # it children nothing else
+        self.is_trunk = True  # nothing children it
 
     def __repr__(self):
         return f"<Node token={self.token} parent={self.parent}>"
@@ -361,8 +361,8 @@ class Node():
                         <TR>        
                             <TD VALIGN='TOP'>"""
 
-            for arg in self.args:
-                tbl += f"""{arg}<BR ALIGN='LEFT'/>"""
+            #for arg in self.args:
+            #    tbl += f"""{arg}<BR ALIGN='LEFT'/>"""
 
             tbl += """</TD><TD VALIGN='TOP'>"""
 
@@ -468,31 +468,29 @@ class Node():
 
 # base class for FxNode and other Fx cont... nodes like end of else, try, except etc.
 class FxBody(Node):
-    def __init__(self, vars, RB, nodeName, parentNode, childrenNodes, import_tokens=None, line_number=None, is_constructor=False, nodeType=None):
+    def __init__(self, vars, RB, token, variables, parent, children, import_tokens=None, line_number=None, is_constructor=False, nodeType=None):
         self.vars = vars
         self.RB = RB      # RB = Return / Breaks
         self.nodeType = nodeType  # should be function name this body comes from.
 
-        Node.__init__(nodeName, parentNode, childrenNodes, import_tokens, line_number, is_constructor)
+        Node.__init__(token, children, variables, parent, import_tokens, line_number, is_constructor)
 
 class FxNode(FxBody):
-    def __init__(self, args, vars, RB, Fxhead, nodeName, parentNode, childrenNodes, import_tokens=None,
-                 line_number=None, is_constructor=False, nodeType=None):
+    def __init__(self, args, vars, RB, token, variables, parent, children, import_tokens=None, line_number=None, is_constructor=False, nodeType=None):
         # FxNode has args
         self.args = args
 
         # init fxbody class
-        FxBody.__init__(vars, RB, Fxhead, args, vars, RB, Fxhead, nodeName, parentNode, childrenNodes, import_tokens,
-                 line_number, is_constructor, nodeType)
+        FxBody.__init__(vars, RB, token, variables, parent, children, import_tokens, line_number, is_constructor, nodeType)
 
 class IfTryNode(Node):
-    def __init__(self, title, nodeName, parentNode, childrenNodes, import_tokens=None, line_number=None, is_constructor=False, condition=None):
+    def __init__(self, title, token, variables, parent, children, import_tokens=None, line_number=None, is_constructor=False, condition=None):
 
         # add condition if an IF statement, otherwise should just be blank
         self.title = title # this will display IF/ELSE or TRY/EXCEPT
         self.condition = condition 
 
-        Node.__init__(nodeName, parentNode, childrenNodes, import_tokens, line_number, is_constructor)
+        Node.__init__(token, children, variables, parent, import_tokens, line_number, is_constructor)
 
 def _wrap_as_variables(sequence):
     """

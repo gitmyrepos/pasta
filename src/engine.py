@@ -31,8 +31,8 @@ LEGEND = """subgraph legend{
         <table cellspacing="0" cellpadding="0" border="1"><tr><td>pasta Legend</td></tr><tr><td>
         <table cellspacing="0">
         <tr><td>Regular function</td><td width="50px" bgcolor='%s'></td></tr>
-        <tr><td>Trunk function (nothing calls this)</td><td bgcolor='%s'></td></tr>
-        <tr><td>Leaf function (this calls nothing else)</td><td bgcolor='%s'></td></tr>
+        <tr><td>Trunk function (nothing children this)</td><td bgcolor='%s'></td></tr>
+        <tr><td>Leaf function (this children nothing else)</td><td bgcolor='%s'></td></tr>
         <tr><td>Function call</td><td><font color='black'>&#8594;</font></td></tr>
         </table></td></tr></table>
         >];
@@ -214,7 +214,7 @@ def generate_json(nodes, edges):
     See https://github.com/jsongraph/json-graph-specification
 
     :param nodes list[Node]: functions
-    :param edges list[Edge]: function calls
+    :param edges list[Edge]: function children
     :rtype: str
     '''
     nodes = [n.to_dict() for n in nodes]
@@ -235,7 +235,7 @@ def write_file(outfile, nodes, edges, groups, hide_legend=False,
 
     :param outfile File:
     :param nodes list[Node]: functions
-    :param edges list[Edge]: function calls
+    :param edges list[Edge]: function children
     :param groups list[Group]: classes and files
     :param hide_legend bool:
     :rtype: None
@@ -353,7 +353,6 @@ def make_file_group(tree, filename, extension):
     file_group = Group(token, group_type, display_name, import_tokens,
                        line_number, parent=None)
     
-    print('Length of Node Trees: ',len(node_trees))
     for node_tree in node_trees:
         for new_node in language.make_nodes(node_tree, parent=file_group):
             file_group.add_node(new_node)
@@ -365,7 +364,7 @@ def make_file_group(tree, filename, extension):
     return file_group
 
 
-def _find_link_for_call(call, node_a, all_nodes):
+def _find_link_for_call(child, node_a, all_nodes):
     """
     Given a call that happened on a node (node_a), return the node
     that the call links to and the call itself if >1 node matched.
@@ -378,10 +377,10 @@ def _find_link_for_call(call, node_a, all_nodes):
     :rtype: (Node|None, Call|None)
     """
 
-    all_vars = node_a.get_variables(call.line_number)
+    all_vars = node_a.get_variables(child.line_number)
 
     for var in all_vars:
-        var_match = call.matches_variable(var)
+        var_match = child.matches_variable(var)
         if var_match:
             # Unknown modules (e.g. third party) we don't want to match)
             if var_match == OWNER_CONST.UNKNOWN_MODULE:
@@ -390,32 +389,32 @@ def _find_link_for_call(call, node_a, all_nodes):
             return var_match, None
 
     possible_nodes = []
-    if call.is_attr():
+    if child.is_attr():
         for node in all_nodes:
             # checking node.parent != node_a.file_group() prevents self linkage in cases like
             # function a() {b = Obj(); b.a()}
-            if call.token == node.token and node.parent != node_a.file_group():
+            if child.token == node.token and node.parent != node_a.file_group():
                 possible_nodes.append(node)
     else:
         for node in all_nodes:
-            if call.token == node.token \
+            if child.token == node.token \
                and isinstance(node.parent, Group)  \
                and node.parent.group_type == GROUP_TYPE.FILE:
                 possible_nodes.append(node)
-            elif call.token == node.parent.token and node.is_constructor:
+            elif child.token == node.parent.token and node.is_constructor:
                 possible_nodes.append(node)
 
     if len(possible_nodes) == 1:
         return possible_nodes[0], None
     if len(possible_nodes) > 1:
-        return None, call
+        return None, child
     return None, None
 
 
 def _find_links(node_a, all_nodes):
     """
-    Iterate through the calls on node_a to find everything the node links to.
-    This will return a list of tuples of nodes and calls that were ambiguous.
+    Iterate through the children on node_a to find everything the node links to.
+    This will return a list of tuples of nodes and children that were ambiguous.
 
     :param Node node_a:
     :param list[Node] all_nodes:
@@ -424,8 +423,8 @@ def _find_links(node_a, all_nodes):
     """
 
     links = []
-    for call in node_a.calls:
-        lfc = _find_link_for_call(call, node_a, all_nodes)
+    for child in node_a.children:
+        lfc = _find_link_for_call(child, node_a, all_nodes)
         assert not isinstance(lfc, Group)
         links.append(lfc)
     return list(filter(None, links))
@@ -441,7 +440,7 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
     3. Trim namespaces / functions that we don't want
     4. Consolidate groups / nodes given all we know so far
     5. Attempt to resolve the variables (point them to a node or group)
-    6. Find all calls between all nodes
+    6. Find all children between all nodes
     7. Loudly complain about duplicate edges that were skipped
     8. Trim nodes that didn't connect to anything
 
@@ -510,33 +509,33 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
         node.resolve_variables(file_groups)
 
     # Not a step. Just log what we know so far
-    logging.info("Found groups %r." % [g.label() for g in all_subgroups])
-    logging.info("Found nodes %r." % sorted(n.token_with_ownership() for n in all_nodes))
-    logging.info("Found calls %r." % sorted(list(set(c.to_string() for c in
-                                                     flatten(n.calls for n in all_nodes)))))
-    logging.info("Found variables %r." % sorted(list(set(v.to_string() for v in
-                                                         flatten(n.variables for n in all_nodes)))))
+    #logging.info("Found groups %r." % [g.label() for g in all_subgroups])
+    #logging.info("Found nodes %r." % sorted(n.token_with_ownership() for n in all_nodes))
+    #logging.info("Found children %r." % sorted(list(set(c.to_string() for c in
+    #                                                 flatten(n.children for n in all_nodes)))))
+    #logging.info("Found variables %r." % sorted(list(set(v.to_string() for v in
+    #                                                     flatten(n.variables for n in all_nodes)))))
 
-    # 6. Find all calls between all nodes
-    bad_calls = []
+    # 6. Find all children between all nodes
+    bad_children = []
     edges = []
     for node_a in list(all_nodes):
         links = _find_links(node_a, all_nodes)
         for node_b, bad_call in links:
             if bad_call:
-                bad_calls.append(bad_call)
+                bad_children.append(bad_call)
             if not node_b:
                 continue
             edges.append(Edge(node_a, node_b))
 
     # 7. Loudly complain about duplicate edges that were skipped
-    bad_calls_strings = set()
-    for bad_call in bad_calls:
-        bad_calls_strings.add(bad_call.to_string())
-    bad_calls_strings = list(sorted(list(bad_calls_strings)))
-    if bad_calls_strings:
-        logging.info("Skipped processing these calls because the algorithm "
-                     "linked them to multiple function definitions: %r." % bad_calls_strings)
+    bad_children_strings = set()
+    for bad_call in bad_children:
+        bad_children_strings.add(bad_call.to_string())
+    bad_children_strings = list(sorted(list(bad_children_strings)))
+    if bad_children_strings:
+        logging.info("Skipped processing these children because the algorithm "
+                     "linked them to multiple function definitions: %r." % bad_children_strings)
 
     if no_trimming:
         return file_groups, all_nodes, edges
@@ -562,7 +561,7 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
     if not all_nodes:
         logging.warning("No functions found! Most likely, your file(s) do not have "
                         "functions that call each other. Note that to generate a flowchart, "
-                        "you need to have both the function calls and the function "
+                        "you need to have both the function children and the function "
                         "definitions. Or, you might be excluding too many "
                         "with --exclude-* / --include-* / --target-function arguments. ")
         logging.warning("pasta will generate an empty output file.")
