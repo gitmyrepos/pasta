@@ -342,8 +342,11 @@ def make_file_group(tree, filename, extension):
     :rtype: Group
     """
     language = LANGUAGES[extension]
+    print('filename: ', filename)
+    subgroup_trees, node_trees, body_trees, ifcons_trees = language.separate_namespaces(tree)
 
-    subgroup_trees, node_trees, body_trees = language.separate_namespaces(tree)
+    print('number of functions: ', len(node_trees))
+
     group_type = GROUP_TYPE.FILE
     token = os.path.split(filename)[-1].rsplit('.' + extension, 1)[0]
     line_number = 0
@@ -354,6 +357,7 @@ def make_file_group(tree, filename, extension):
                        line_number, parent=None)
     
     for node_tree in node_trees:
+        #print('trees len:  ', len(node_trees))
         for new_node in language.make_nodes(node_tree, parent=file_group):
             file_group.add_node(new_node)
 
@@ -509,12 +513,12 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
         node.resolve_variables(file_groups)
 
     # Not a step. Just log what we know so far
-    #logging.info("Found groups %r." % [g.label() for g in all_subgroups])
-    #logging.info("Found nodes %r." % sorted(n.token_with_ownership() for n in all_nodes))
-    #logging.info("Found children %r." % sorted(list(set(c.to_string() for c in
-    #                                                 flatten(n.children for n in all_nodes)))))
-    #logging.info("Found variables %r." % sorted(list(set(v.to_string() for v in
-    #                                                     flatten(n.variables for n in all_nodes)))))
+    logging.info("Found groups %r." % [g.label() for g in all_subgroups])
+    logging.info("Found nodes %r." % sorted(n.token_with_ownership() for n in all_nodes))
+    logging.info("Found children %r." % sorted(list(set(c.to_string() for c in
+                                                     flatten(n.children for n in all_nodes)))))
+    logging.info("Found variables %r." % sorted(list(set(v.to_string() for v in
+                                                         flatten(n.variables for n in all_nodes)))))
 
     # 6. Find all children between all nodes
     bad_children = []
@@ -527,6 +531,10 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
             if not node_b:
                 continue
             edges.append(Edge(node_a, node_b))
+
+    print('I found the bad children:   ', bad_children)
+    print('I found this many edges!!!!!!!!!!!!!!!!!!!!: ', len(edges))
+    print('but I have this many nodes:  ', len(all_nodes))
 
     # 7. Loudly complain about duplicate edges that were skipped
     bad_children_strings = set()

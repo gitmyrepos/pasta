@@ -7,7 +7,7 @@ from .model import (OWNER_CONST, GROUP_TYPE, Group, Node, Call, Variable,
                     BaseLanguage, djoin)
 
 
-def get_call_from_func_element(func):
+def get_call_from_func_element(func, parent):
     """
     Given a python ast that represents a function call, clear and create our
     generic Call object. Some children have no chance at resolution (e.g. array[2](param))
@@ -16,13 +16,17 @@ def get_call_from_func_element(func):
     :param func ast:
     :rtype: Call|None
     """
+
+    
     assert type(func) in (ast.Attribute, ast.Name, ast.Subscript, ast.Call)
+    grouptoken = parent.token
     if type(func) == ast.Attribute:
         owner_token = []
         val = func.value
         while True:
             try:
                 owner_token.append(getattr(val, 'attr', val.id))
+
             except AttributeError:
                 pass
             val = getattr(val, 'value', None)
@@ -30,6 +34,8 @@ def get_call_from_func_element(func):
                 break
         if owner_token:
             owner_token = djoin(*reversed(owner_token))
+            if owner_token == grouptoken:
+                owner_token = None # the codebase doesn't like when you self ref functions from the source file.
         else:
             owner_token = OWNER_CONST.UNKNOWN_VAR
         return Call(token=func.attr, line_number=func.lineno, owner_token=owner_token)
@@ -39,7 +45,7 @@ def get_call_from_func_element(func):
         return None
 
 
-def make_children(lines):
+def make_children(lines, parent):
     """
     Given a list of lines, find all children in this list.
 
@@ -52,13 +58,13 @@ def make_children(lines):
         for element in ast.walk(tree):
             if type(element) != ast.Call:
                 continue
-            call = get_call_from_func_element(element.func)
+            call = get_call_from_func_element(element.func, parent)
             if call:
                 children.append(call)
     return children
 
 
-def process_assign(element):
+def process_assign(element, parent):
     """
     Given an element from the ast which is an assignment statement, return a
     Variable that points_to the type of object being assigned. For now, the
@@ -70,7 +76,7 @@ def process_assign(element):
 
     if type(element.value) != ast.Call:
         return []
-    call = get_call_from_func_element(element.value.func)
+    call = get_call_from_func_element(element.value.func, parent)
     if not call:
         return []
 
@@ -152,7 +158,7 @@ def make_local_variables(lines, parent):
     for tree in lines:
         for element in ast.walk(tree):
             if type(element) == ast.Assign:
-                variables += process_assign(element)
+                variables += process_assign(element, parent)
             if type(element) in (ast.Import, ast.ImportFrom):
                 variables += process_import(element)
     if parent.group_type == GROUP_TYPE.CLASS:
@@ -209,22 +215,47 @@ class Python(BaseLanguage):
                   downstream into real Groups and Nodes.
         :rtype: (list[ast], list[ast], list[ast])
         """
-        groups = []
-        nodes = []
-        body = []
+        groups = [] # classes
+        nodes = [] # functions and async functions
+        body = [] # everything else
+        ifcons = [] # look for if condition logic........ this is new
+
         for el in tree.body:
+            #print('el is type: ', type(el))
             if type(el) in (ast.FunctionDef, ast.AsyncFunctionDef):
+                print('function name: ',el.name)
                 nodes.append(el)
+                #Python.separate_namespaces(el)
+                #groups += tup[0]
+                #nodes += tup[1]
+                #body += tup[2]
+                #ifcons += tup[3]
             elif type(el) == ast.ClassDef:
                 groups.append(el)
+                #Python.separate_namespaces(el)
+                #groups += tup[0]
+                #nodes += tup[1]
+                #body += tup[2]
+                #ifcons += tup[3]
+            elif type(el) == ast.If:
+                ifcons.append(el)
+                #Python.separate_namespaces(el)
+                #groups += tup[0]
+                #nodes += tup[1]
+                #body += tup[2]
+                #ifcons += tup[3]
             elif getattr(el, 'body', None):
                 tup = Python.separate_namespaces(el)
+                print('we are gonna dig deeper!') # this never runs with our code...
                 groups += tup[0]
                 nodes += tup[1]
                 body += tup[2]
+                ifcons += tup[3]
             else:
                 body.append(el)
-        return groups, nodes, body
+        
+        print('if conditions found... ', ifcons)
+        return groups, nodes, body, ifcons
 
     @staticmethod
     def make_nodes(tree, parent):
@@ -248,6 +279,7 @@ class Python(BaseLanguage):
             'Name': 'id'
         }
 
+        
         #print('TREE NAME: ', tree.name)
         for item in tree.body:
             # determine what type of ast object the item is
@@ -279,9 +311,12 @@ class Python(BaseLanguage):
 
 
         token = tree.name
-        arguments = make_arguments(tree.args)
+
+        
+
+        #arguments = make_arguments(tree.args)
         line_number = tree.lineno
-        children = make_children(tree.body)
+        children = make_children(tree.body, parent)
         variables = make_local_variables(tree.body, parent)
         is_constructor = False
 
@@ -291,6 +326,14 @@ class Python(BaseLanguage):
         import_tokens = []
         if parent.group_type == GROUP_TYPE.FILE:
             import_tokens = [djoin(parent.token, token)]
+
+
+        if token == 'autoStartEnd':
+            print('adding nodes for autostartend!!!')
+            print('children: ', children)
+            print('variables: ', variables)
+            print('parent: ', parent)
+
 
         return [Node(token, children, variables, parent, import_tokens=import_tokens,
                      line_number=line_number, is_constructor=is_constructor)]
@@ -307,7 +350,7 @@ class Python(BaseLanguage):
         """
         token = "(global)"
         line_number = 0
-        children = make_children(lines)
+        children = make_children(lines, parent)
         variables = make_local_variables(lines, parent)
         return Node(token, children, variables, parent, line_number=line_number)
 
