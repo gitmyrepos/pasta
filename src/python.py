@@ -76,7 +76,14 @@ def process_assign(element, parent):
     :param element ast:
     :rtype: Variable
     """
+    print('assign this for me: ', element.value)
+    if type(element.value) == ast.Constant:
+        print('found a constant!!! ', element.value.value)
+        #return [Variable(element.value.value, parent, element.lineno)]
 
+    if type(element.value) == ast.Attribute:
+        print('found an attr')
+        #return [Variable(element.value.value, parent, element.lineno)]
     if type(element.value) != ast.Call:
         return []
     call = get_call_from_func_element(element.value.func, parent)
@@ -163,14 +170,29 @@ def make_local_variables(lines, parent):
 
 
 
-    for tree in lines:
-        for element in ast.iter_child_nodes(tree):
-            if type(element) == ast.Assign:
-                variables += process_assign(element, parent)
-            if type(element) in (ast.Import, ast.ImportFrom):
-                variables += process_import(element)
-            #if type(element) == ast.If:
-            #    variables += process_if(element)
+    #for tree in lines:
+    print('lines: ', lines)
+    for element in lines:
+        print('element in body: ', element)
+        if type(element) == ast.Assign:
+            variables += process_assign(element, parent)
+        if type(element) in (ast.Import, ast.ImportFrom):
+            variables += process_import(element)
+        if type(element) == ast.Expr:
+            print(element.value)
+            if type(element.value) == ast.Call:
+                if type(element.value.func) == ast.Name:
+                    token = element.value.func.id
+                else:
+                    #assume attr
+                    token = element.value.func.attr
+            elif type(element.value) == ast.Subscript:
+                token = element.value.value.value.id
+            elif type(element.value) == ast.Constant:
+                token = element.value.value
+            variables += [Variable(token, parent, element.lineno)]
+        #if type(element) == ast.If:
+        #    variables += process_if(element)
     if parent.group_type == GROUP_TYPE.CLASS:
         variables.append(Variable('self', parent, lines[0].lineno))
 
@@ -178,6 +200,7 @@ def make_local_variables(lines, parent):
     variables = list(filter(None, variables))
 
     #print('This is the list Filtered: ', variables)
+    print('my vars: ', variables)
     return variables
 
 
@@ -517,6 +540,7 @@ class Python(BaseLanguage):
     def make_condition_str(condition):
         print('condition to parse: ', condition)
         return_str = ''
+        
         if type(condition) == ast.Compare:
             compare = condition.left
             ops = condition.ops

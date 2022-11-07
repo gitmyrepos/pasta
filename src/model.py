@@ -1,5 +1,6 @@
 import abc
 import os
+import ast
 
 
 TRUNK_COLOR = '#966F33'
@@ -347,24 +348,35 @@ class Node():
         return djoin(ret)
 
     def label(self):
+        
         """
         Labels are what you see on the graph
         :rtype: str
         """
-        #print('this is my parent: ', self.parent.token)
         if self.line_number is not None:
+            #vars_str = ''
+            
+            #func_len = len(self.token) + len(str(self.line_number)) + 30
+            #print(func_len)
+            print('my vars again: ', self.variables)
+            vars_list = []
+            #arg_str = ', '.join(map(str,self.args))
+           
+            #vars_str = ', '.join(map(str,vars_list))
+            #print(len(arg_str)/func_len) 
+            #print(vars_str)
 
-            tbl = f"""<<TABLE CELLSPACING='0' CELLPADDING='4' BORDER='1'>
-                        <TR>
-                            <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
-                            <TD ALIGN='RIGHT' BORDER='0'><B>{self.token}() -- </B></TD>
-                        </TR>
-                        <TR>       
-                            <TD ALIGN='TEXT' BORDER='1'><B>Arguments: </B></TD>
-                            <TD ALIGN='TEXT' BORDER='1'><B>Variables: </B></TD>
-                        </TR>
-                        <TR>        
-                            <TD VALIGN='TOP'>"""
+            tbl = f"""<<TABLE CELLSPACING='0' CELLPADDING='10' BORDER='1'>
+                    <TR>
+                        <TD COLSPAN='1' ALIGN='left' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
+                        <TD ALIGN='right' BORDER='0'><B>{self.token}()</B></TD>
+                    </TR>
+                    <TR>       
+                        <TD ALIGN='TEXT' BORDER='1'><B>Arguments: </B></TD>
+                        <TD ALIGN='TEXT' BORDER='1'><B>Variables: </B></TD>
+                    </TR>
+                    <TR>        
+                        <TD VALIGN='TOP'>"""
             if self.args:
                 for arg in self.args.args:
                     tbl += f"""{arg.arg}<BR ALIGN='LEFT'/>"""
@@ -373,6 +385,7 @@ class Node():
 
             for var in self.variables:
                 # need to record normal vars...
+                print('var to print: ', var.token)
                 tbl += f"""{var.token}<BR ALIGN='LEFT'/>"""
 
             tbl += """</TD>
@@ -478,7 +491,7 @@ class Node():
         }
 
 class IfNode():
-    def __init__(self, token, nodeName, condition, ifTrueID, parent, ifFalseID=None, ifContID=None, uid=None, lineno=None):
+    def __init__(self, token, nodeName, condition, ifTrueID, parent, ifFalseID=None, ifContID=None, uid=None, lineno=None, import_tokens=None):
         self.token = token
         self.nodeName = nodeName
         self.condition = condition
@@ -487,6 +500,7 @@ class IfNode():
         self.ifContID = ifContID
         self.parent = parent
         self.lineno = lineno
+        self.import_tokens = import_tokens or []
 
         if uid == None:
             self.uid = "node_" + os.urandom(4).hex()
@@ -525,7 +539,6 @@ class IfNode():
         
         return lbl
 
-
     def name(self):
         """
         Names exist largely for unit tests and deterministic node sorting
@@ -543,6 +556,13 @@ class IfNode():
             parent = parent.parent
         return parent
     
+    def remove_from_parent(self):
+        """
+        Remove this node from it's parent. This effectively deletes the node.
+        :rtype: None
+        """
+        self.first_group().nodes = [n for n in self.first_group().nodes if n != self]
+
     def to_dot(self):
         """
         Output for graphviz (.dot) files
@@ -587,6 +607,7 @@ class IfNode():
         return (self.parent
                 and isinstance(self.parent, Group)
                 and self.parent.group_type in (GROUP_TYPE.CLASS, GROUP_TYPE.NAMESPACE))
+
 
 
 def _wrap_as_variables(sequence):
