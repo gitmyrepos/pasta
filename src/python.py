@@ -285,7 +285,7 @@ class Python(BaseLanguage):
         return simple_funcs, complex_funcs
 
     @staticmethod
-    def make_nodes(tree, parent, root_name=None, root_num=0, array_num=0):
+    def make_nodes(tree, parent, root_name=None, root_num=0, array_num=0, uid=None):
         """
         Given an ast of all the lines in a function, create the node along with the
         calls and variables internal to it.
@@ -375,9 +375,11 @@ class Python(BaseLanguage):
                 if root_num == 0 and array_num == 0:
                     token = root_name
                     nodeName = root_name
+
                 else:
                     token = root_name + 'R' + str(root_num) + 'A' + str(array_num)
                     nodeName = root_name
+                    
                 # assign line number
                 line_number = group[0].lineno
                 # assign calls for this node
@@ -396,7 +398,7 @@ class Python(BaseLanguage):
                 ifNode = None
                 # since the current index is a normal node and if the current index is not the last in the sub_bodies list then the next index must be an IF node
                 if groups.index(group) + 1 < len(groups):
-                    ifNode = root_name + 'R' + str(root_num) + 'A' + str(array_num + 1)
+                    ifNode = "node_" + os.urandom(4).hex()
 
                 # now create this node and add it to the list of nodes to return.
                 if root_name == 'complianceConfirmation':
@@ -405,7 +407,8 @@ class Python(BaseLanguage):
                     print('vars: ', variables)
                     print('calls: ', calls)
                     print('my if node: ', ifNode)
-                nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=line_number, is_constructor=is_constructor, args=arguments, ifNode=ifNode))
+                nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=line_number, is_constructor=is_constructor, args=arguments, ifNode=ifNode, uid=uid))
+                uid = ifNode
 
             if type(group[0]) == ast.If:
                 # create an if node using tree.name (function name) + index as token
@@ -417,23 +420,24 @@ class Python(BaseLanguage):
                 # create condition
                 condition = group[0].test
                 # create ifTrueID
-                ifTrueID = root_name + 'R' + str(root_num + 1) + 'A' + str(0)
-                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, root_num=(root_num+1))
+                ifTrueID = "node_" + os.urandom(4).hex()
+                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, root_num=(root_num+1), uid=ifTrueID)
                 nodes_to_return += trueNodes
                 # check if ifFalse exists
                 ifFalseID = None
                 if group[0].orelse:
-                    ifFalseID = root_name + 'R' + str(root_num + 100) + 'A' + str(0)
-                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, root_num=(root_num+100))
+                    ifFalseID = "node_" + os.urandom(4).hex()
+                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, root_num=(root_num+100), uid=ifFalseID)
                     nodes_to_return += falseNodes
         
                 # if this IfNode in list sub_bodies is not the last in the list then add cont id and connect to next item
                 ifContID = None
                 #print('group len: ', len(group))
                 if groups.index(group) + 1 < len(groups):
-                    ifContID = root_name + 'R' + str(root_num) + 'A' + str(array_num + 1)
+                    ifContID = "node_" + os.urandom(4).hex()
                     
-                nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID))
+                nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID, uid=uid))
+                uid = ifContID
             array_num += 1
         # last sanity check to see what nodes we will return to caller
         #print('nodes to return: ', nodes_to_return)

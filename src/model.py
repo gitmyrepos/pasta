@@ -261,7 +261,7 @@ class Call():
 
 class Node():
     def __init__(self, token, nodeName, calls, variables, parent, import_tokens=None,
-                 line_number=None, is_constructor=False, args=None, ifNode=None):
+                 line_number=None, is_constructor=False, args=None, ifNode=None, uid=None):
         self.token = token
         self.nodeName = nodeName
         
@@ -274,7 +274,10 @@ class Node():
         self.is_constructor = is_constructor
         self.ifNode = ifNode
 
-        self.uid = "node_" + os.urandom(4).hex()
+        if uid == None:
+            self.uid = "node_" + os.urandom(4).hex()
+        else:
+            self.uid = uid
 
         # Assume it is a leaf and a trunk. These are modified later
         self.is_leaf = True  # it calls nothing else
@@ -475,7 +478,7 @@ class Node():
         }
 
 class IfNode():
-    def __init__(self, token, nodeName, condition, ifTrueID, parent, ifFalseID=None, ifContID=None):
+    def __init__(self, token, nodeName, condition, ifTrueID, parent, ifFalseID=None, ifContID=None, uid=None):
         self.token = token
         self.nodeName = nodeName
         self.condiiton = condition
@@ -483,8 +486,12 @@ class IfNode():
         self.ifFalseID = ifFalseID
         self.ifContID = ifContID
         self.parent = parent
+        self.lineno = condition.lineno
 
-        self.uid = "node_" + os.urandom(4).hex()
+        if uid == None:
+            self.uid = "node_" + os.urandom(4).hex()
+        else:
+            self.uid = uid
 
         # Assume it is a leaf and a trunk. These are modified later
         self.is_leaf = True  # it calls nothing else
@@ -514,7 +521,7 @@ class IfNode():
                 </TABLE>>"""
         
 
-        lbl = f"IF &#92;n {self.ifTrueID}"
+        lbl = f"IF &#92;n {self.ifTrueID} &#92;n Ln: {self.lineno}"
         
         return lbl
 
