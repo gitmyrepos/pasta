@@ -177,7 +177,7 @@ class Variable():
 
 class Call():
     """
-    children represent function call expressions.
+    calls represent function call expressions.
     They can be an attribute call like
         object.do_something()
     Or a "naked" call like
@@ -205,7 +205,7 @@ class Call():
 
     def is_attr(self):
         """
-        Attribute children are like `a.do_something()` rather than `do_something()`
+        Attribute calls are like `a.do_something()` rather than `do_something()`
         :rtype: bool
         """
         return self.owner_token is not None
@@ -260,23 +260,25 @@ class Call():
 
 
 class Node():
-    def __init__(self, token, children, variables, parent, import_tokens=None,
-                 line_number=None, is_constructor=False):
+    def __init__(self, token, nodeName, calls, variables, parent, import_tokens=None,
+                 line_number=None, is_constructor=False, args=None, ifNode=None):
         self.token = token
-        #self.args = args
+        self.nodeName = nodeName
+        
+        self.args = args
         self.line_number = line_number
-        #self.calls = calls Changing this to 'children' to include other types of nodes
         self.variables = variables
-        self.children = children
+        self.calls = calls
         self.import_tokens = import_tokens or []
         self.parent = parent
         self.is_constructor = is_constructor
+        self.ifNode = ifNode
 
         self.uid = "node_" + os.urandom(4).hex()
 
         # Assume it is a leaf and a trunk. These are modified later
-        self.is_leaf = True  # it children nothing else
-        self.is_trunk = True  # nothing children it
+        self.is_leaf = True  # it calls nothing else
+        self.is_trunk = True  # nothing calls it
 
     def __repr__(self):
         return f"<Node token={self.token} parent={self.parent}>"
@@ -360,13 +362,14 @@ class Node():
                         </TR>
                         <TR>        
                             <TD VALIGN='TOP'>"""
-
-            #for arg in self.args:
-            #    tbl += f"""{arg}<BR ALIGN='LEFT'/>"""
+            if self.args:
+                for arg in self.args.args:
+                    tbl += f"""{arg.arg}<BR ALIGN='LEFT'/>"""
 
             tbl += """</TD><TD VALIGN='TOP'>"""
 
             for var in self.variables:
+                # need to record normal vars...
                 tbl += f"""{var.token}<BR ALIGN='LEFT'/>"""
 
             tbl += """</TD>
@@ -397,6 +400,11 @@ class Node():
             ret.sort(key=lambda v: v.line_number, reverse=True)
 
         parent = self.parent
+
+        #print('line_number: ', line_number)
+        if line_number == 1047:
+            print('I found the line number........................')
+            print(self.variables)
         while parent:
             ret += parent.get_variables()
             parent = parent.parent
@@ -466,31 +474,113 @@ class Node():
             'name': self.name(),
         }
 
-# base class for FxNode and other Fx cont... nodes like end of else, try, except etc.
-class FxBody(Node):
-    def __init__(self, vars, RB, token, variables, parent, children, import_tokens=None, line_number=None, is_constructor=False, nodeType=None):
-        self.vars = vars
-        self.RB = RB      # RB = Return / Breaks
-        self.nodeType = nodeType  # should be function name this body comes from.
+class IfNode():
+    def __init__(self, token, nodeName, condition, ifTrueID, parent, ifFalseID=None, ifContID=None):
+        self.token = token
+        self.nodeName = nodeName
+        self.condiiton = condition
+        self.ifTrueID = ifTrueID
+        self.ifFalseID = ifFalseID
+        self.ifContID = ifContID
+        self.parent = parent
 
-        Node.__init__(token, children, variables, parent, import_tokens, line_number, is_constructor)
+        self.uid = "node_" + os.urandom(4).hex()
 
-class FxNode(FxBody):
-    def __init__(self, args, vars, RB, token, variables, parent, children, import_tokens=None, line_number=None, is_constructor=False, nodeType=None):
-        # FxNode has args
-        self.args = args
+        # Assume it is a leaf and a trunk. These are modified later
+        self.is_leaf = True  # it calls nothing else
+        self.is_trunk = True  # nothing calls it
 
-        # init fxbody class
-        FxBody.__init__(vars, RB, token, variables, parent, children, import_tokens, line_number, is_constructor, nodeType)
+    def __lt__(self, other):
+        return self.name() < other.name()
 
-class IfTryNode(Node):
-    def __init__(self, title, token, variables, parent, children, import_tokens=None, line_number=None, is_constructor=False, condition=None):
+    def label(self):
+        """
+        Labels are what you see on the graph
+        :rtype: str
+        """
+        tbl = f"""<<TABLE CELLSPACING='0' CELLPADDING='4' BORDER='1'>
+                    <TR>
+                        <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'><B>IF STATEMENT ID: {self.token}</B></TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'><B>IF TRUE ID: {self.ifTrueID}</B></TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'><B>IF FALSE ID: {self.ifFalseID}</B></TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN='1' ALIGN='LEFT' BORDER='0'><B>IF CONT ID: {self.ifContID}</B></TD>
+                    </TR>
+                </TABLE>>"""
+        
 
-        # add condition if an IF statement, otherwise should just be blank
-        self.title = title # this will display IF/ELSE or TRY/EXCEPT
-        self.condition = condition 
+        lbl = f"IF &#92;n {self.ifTrueID}"
+        
+        return lbl
 
-        Node.__init__(token, children, variables, parent, import_tokens, line_number, is_constructor)
+
+    def name(self):
+        """
+        Names exist largely for unit tests and deterministic node sorting
+        :rtype: str
+        """
+        return f"{self.first_group().filename()}::{self.token_with_ownership()}"
+
+    def first_group(self):
+        """
+        The first group that contains this node.
+        :rtype: Group
+        """
+        parent = self.parent
+        while not isinstance(parent, Group):
+            parent = parent.parent
+        return parent
+    
+    def to_dot(self):
+        """
+        Output for graphviz (.dot) files
+        :rtype: str
+        """
+        attributes = {
+            'label': self.label(),
+            'name': self.name(),
+            'shape': "diamond",
+            'style': 'rounded,filled',
+            'fontname': 'Arial',
+            'fillcolor': 'yellow',
+        }
+        if self.is_trunk:
+            attributes['fillcolor'] = TRUNK_COLOR
+        elif self.is_leaf:
+            attributes['fillcolor'] = LEAF_COLOR
+
+        ret = self.uid + ' ['
+        for k, v in attributes.items():
+            if k == 'label':
+                ret += f'{k}="{v}" '
+            else:
+                ret += f'{k}="{v}" '
+        ret += ']'
+        return ret
+
+    def token_with_ownership(self):
+        """
+        Token which includes what group this is a part of
+        :rtype: str
+        """
+        if self.is_attr():
+            return djoin(self.parent.token, self.token)
+        return self.token
+
+    def is_attr(self):
+        """
+        Whether this node is attached to something besides the file
+        :rtype: bool
+        """
+        return (self.parent
+                and isinstance(self.parent, Group)
+                and self.parent.group_type in (GROUP_TYPE.CLASS, GROUP_TYPE.NAMESPACE))
+
 
 def _wrap_as_variables(sequence):
     """
@@ -500,7 +590,8 @@ def _wrap_as_variables(sequence):
     :param list[Group|Node] sequence:
     :rtype: list[Variable]
     """
-    return [Variable(el.token, el, el.line_number) for el in sequence]
+    new_seq = list(filter(lambda el: type(el) == Node, sequence))
+    return [Variable(el.token, el, el.line_number) for el in new_seq]
 
 
 class Edge():
@@ -645,6 +736,7 @@ class Group():
         """
 
         if self.root_node:
+            #print('self is a root_node: ',self)
             variables = (self.root_node.variables
                          + _wrap_as_variables(self.subgroups)
                          + _wrap_as_variables(n for n in self.nodes if n != self.root_node))

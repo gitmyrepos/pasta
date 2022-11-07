@@ -3,14 +3,14 @@ import logging
 import os
 import inspect
 
-from .model import (OWNER_CONST, GROUP_TYPE, Group, Node, Call, Variable,
+from .model import (OWNER_CONST, GROUP_TYPE, Group, Node, Call, Variable, IfNode,
                     BaseLanguage, djoin)
 
 
 def get_call_from_func_element(func, parent):
     """
     Given a python ast that represents a function call, clear and create our
-    generic Call object. Some children have no chance at resolution (e.g. array[2](param))
+    generic Call object. Some calls have no chance at resolution (e.g. array[2](param))
     so we return nothing instead.
 
     :param func ast:
@@ -45,23 +45,26 @@ def get_call_from_func_element(func, parent):
         return None
 
 
-def make_children(lines, parent):
+def make_calls(lines, parent):
     """
-    Given a list of lines, find all children in this list.
+    Given a list of lines, find all calls in this list.
 
     :param lines list[ast]:
     :rtype: list[Call]
     """
-
-    children = []
+    #print('about to make calls elements, ', lines)
+    calls = []
     for tree in lines:
-        for element in ast.walk(tree):
-            if type(element) != ast.Call:
-                continue
-            call = get_call_from_func_element(element.func, parent)
-            if call:
-                children.append(call)
-    return children
+        for element in ast.iter_child_nodes(tree):
+            #print('call element?: ', element)
+            if type(element) == ast.Call:
+                call = get_call_from_func_element(element.func, parent)
+                if call:
+                    calls.append(call)
+
+            
+               
+    return calls
 
 
 def process_assign(element, parent):
@@ -115,6 +118,11 @@ def process_import(element):
         ret.append(Variable(token, points_to=rhs, line_number=element.lineno))
     return ret
 
+def process_if(element):
+    ret = []
+    print('processing if node, ', element)
+    ret.append(Variable())
+
 def make_arguments(arguments):
 
     args_obj_list = arguments.args
@@ -156,11 +164,13 @@ def make_local_variables(lines, parent):
 
 
     for tree in lines:
-        for element in ast.walk(tree):
+        for element in ast.iter_child_nodes(tree):
             if type(element) == ast.Assign:
                 variables += process_assign(element, parent)
             if type(element) in (ast.Import, ast.ImportFrom):
                 variables += process_import(element)
+            #if type(element) == ast.If:
+            #    variables += process_if(element)
     if parent.group_type == GROUP_TYPE.CLASS:
         variables.append(Variable('self', parent, lines[0].lineno))
 
@@ -215,128 +225,219 @@ class Python(BaseLanguage):
                   downstream into real Groups and Nodes.
         :rtype: (list[ast], list[ast], list[ast])
         """
-        groups = [] # classes
-        nodes = [] # functions and async functions
+
+        #    if isinstance(code_ast, ast.AST):
+        #    print('codeAST: ', code_ast)
+        #    # This looks like if the code_ast is indeed just a single node then it will extract its data fields/attributes
+        #    #print(code_ast, ', IS an AST object!')
+        #    node = {to_camelcase(k): transform_ast(getattr(code_ast, k)) for k in code_ast._fields}
+        #    node['node_type'] = to_camelcase(code_ast.__class__.__name__)
+        #    #print(type(node))
+        #    return node
+
+
+        groups = [] # classes and functions with split logic
+        nodes = [] # simple functions and async functions
         body = [] # everything else
-        ifcons = [] # look for if condition logic........ this is new
 
         for el in tree.body:
             #print('el is type: ', type(el))
             if type(el) in (ast.FunctionDef, ast.AsyncFunctionDef):
-                print('function name: ',el.name)
+                #print('func type:  ', type(el))
                 nodes.append(el)
-                #Python.separate_namespaces(el)
+                #tup = Python.separate_namespaces(el)
                 #groups += tup[0]
                 #nodes += tup[1]
                 #body += tup[2]
-                #ifcons += tup[3]
+              
             elif type(el) == ast.ClassDef:
                 groups.append(el)
-                #Python.separate_namespaces(el)
+                #tup = Python.separate_namespaces(el)
                 #groups += tup[0]
                 #nodes += tup[1]
                 #body += tup[2]
-                #ifcons += tup[3]
-            elif type(el) == ast.If:
-                ifcons.append(el)
-                #Python.separate_namespaces(el)
-                #groups += tup[0]
-                #nodes += tup[1]
-                #body += tup[2]
-                #ifcons += tup[3]
+                
             elif getattr(el, 'body', None):
                 tup = Python.separate_namespaces(el)
                 print('we are gonna dig deeper!') # this never runs with our code...
                 groups += tup[0]
                 nodes += tup[1]
                 body += tup[2]
-                ifcons += tup[3]
             else:
                 body.append(el)
         
-        print('if conditions found... ', ifcons)
-        return groups, nodes, body, ifcons
+        #print('if conditions found... ', ifcons)
+        return groups, nodes, body
 
     @staticmethod
-    def make_nodes(tree, parent):
+    def eval_funcs(funcs):
+        print('about to eval funcs')
+        simple_funcs = funcs
+        complex_funcs = []
+
+        for func in funcs:
+            for el in ast.iter_child_nodes(func):
+                if type(el) == ast.If:
+                    complex_funcs.append(func)
+                    simple_funcs.remove(func)
+                    break
+            
+        return simple_funcs, complex_funcs
+
+    @staticmethod
+    def make_nodes(tree, parent, root_name=None, root_num=0, array_num=0):
         """
         Given an ast of all the lines in a function, create the node along with the
-        children and variables internal to it.
+        calls and variables internal to it.
 
         :param tree ast:
         :param parent Group:
         :rtype: list[Node]
         """
 
-        asttype = {
-            'Assign': 'targets',
-            'Expr': 'value',
-            'ImportFrom': 'module',
-            'Import': 'names',
-            'Try': 'body',
-            'If': 'test',
-            'Return': 'value',
-            'Name': 'id'
-        }
-
-        
-        #print('TREE NAME: ', tree.name)
-        for item in tree.body:
-            # determine what type of ast object the item is
-            itemType = type(item).__name__
-            
-            # if it is a try or if block then more logic needs to be done and new nodes need to be created
-            if itemType == 'Try' or itemType == 'If':
-                #print(item)
-                x = 1
-            
-            elif itemType == 'Assign':
-                targetType = type(item.targets).__name__
-                #print('targetType: ', targetType)
-                assignVars = []
-                for vars in item.targets:
-
-                    if type(vars).__name__ == 'Name':
-                        #print('targets: ', vars.id) 
-                        #print('value: ', item.value)
-                        x = 1
-                    elif type(vars).__name__ == 'Attribute':
-                        #print('attribute!!!!!!!')
-                        #print(vars.value.func.value.id)
-                        x = 1
-                    elif type(vars).__name__ == 'Tuple':
-                        #print('TUPLE!!!!!!!!!!!')
-                        #print('targets: ', vars.elts)
-                        x = 1
-
-
-        token = tree.name
-
-        
-
+        #nodeName = tree.name
+        #print('the token for normal nodes is:   ', type(token))
         #arguments = make_arguments(tree.args)
-        line_number = tree.lineno
-        children = make_children(tree.body, parent)
-        variables = make_local_variables(tree.body, parent)
-        is_constructor = False
+        #line_number = tree.lineno
 
-        if parent.group_type == GROUP_TYPE.CLASS and token in ['__init__', '__new__']:
-            is_constructor = True
+         # basically I need to find index of ifs and subnodes (statements between ifs)
+        # to create a subnode I need to know what vars are in body in index which means I should only accept body elements and calls from
+        # that section from start or If to next if or finish....
+        
+        # the outter function will determine the head function 
+        # determine substituted body...
 
-        import_tokens = []
-        if parent.group_type == GROUP_TYPE.FILE:
-            import_tokens = [djoin(parent.token, token)]
+        # first check if we need to change anything at all if there even exists an IF statement
+        # this assumes there is no if, if we find one then we change body to appropriate variable
+
+        if root_name == None:
+            root_name = tree.name
+
+        if root_name == 'complianceConfirmation':
+            print('COMPLIANCE FOUND!!!!!!!')
+        #print('root name: ', root_name)
+
+        # assume no arguments are needed unless an ast.arguments node is found.
+        arguments = None
+        
+        # This first checks what sort of tree is given if it is a list or ast.functionDef
+        # and puts all child elements into a list if necessary (excluding arguments)
+        # if arguments are found it sets the arguments var
+        ungrouped_nodes = []
+        if type(tree) == ast.FunctionDef:
+            for el in ast.iter_child_nodes(tree):
+                if type(el) == ast.arguments:
+                    arguments = el
+                else:
+                    ungrouped_nodes.append(el)
+
+        # if the tree given is a list (body of previous function/if element) then just use the list
+        if type(tree) == list:
+            ungrouped_nodes = tree
+
+        # This looks into the list of nodes and looks for ifs and separates out groups of nodes
+        group = []
+        groups = []
+        for el in ungrouped_nodes:
+            if type(el) == ast.If:
+                # add previous group to groups
+                if group != []:
+                    groups.append(group)
+                # add new group for ast.If
+                groups.append([el])
+                # reset group
+                group = []
+            else:
+                # if the element is not an ast.If then add it to the current group
+                group.append(el)
+
+        # if an ast.If was last in the ungroup_nodes then group would = [] which we don't need
+        # however if there remains any other elements the last group we need to add it to groups
+        if group != []:
+            groups.append(group)
 
 
-        if token == 'autoStartEnd':
-            print('adding nodes for autostartend!!!')
-            print('children: ', children)
-            print('variables: ', variables)
-            print('parent: ', parent)
+        # Sanity check to see a list of groups in sub_bodies if the list is 1 then it's a normal node with no IF logic
+        # if the length of sub_bodies is more than 1 there should be at least 1 IfNode which requires further logic
+        #print('this is length of groups: ', len(groups))
+        if root_name == 'complianceConfirmation':
+            print('root num: ', root_num)
+        # Now we analyize each sub_group of nodes and create new nodes out of them either normal function/body nodes or IfNodes
+        nodes_to_return = []
+        for group in groups:
+            # if the group is a normal node (not an ast.If)
+            
+            if type(group[0]) != ast.If:
+                # assign token (token = nodeID)
+                # assign nodeName (display name on map)
+                print('root/array: ', root_num, '/', array_num)
+                
+                if root_num == 0 and array_num == 0:
+                    token = root_name
+                    nodeName = root_name
+                else:
+                    token = root_name + 'R' + str(root_num) + 'A' + str(array_num)
+                    nodeName = root_name
+                # assign line number
+                line_number = group[0].lineno
+                # assign calls for this node
+                calls = make_calls(group, parent)
+                # assign variables for this node
+                variables = make_local_variables(group, parent)
+                # assign import tokens
+                import_tokens = []
+                if parent.group_type == GROUP_TYPE.FILE:
+                    import_tokens = [djoin(parent.token, token)]
+                # assign is_constructor
+                is_constructor = False
+                if parent.group_type == GROUP_TYPE.CLASS and token in ['__init__', '__new__']:
+                    is_constructor = True
+                # if sub_bodies len is greater than index then assign if as tree.name_if_index(of if)
+                ifNode = None
+                # since the current index is a normal node and if the current index is not the last in the sub_bodies list then the next index must be an IF node
+                if groups.index(group) + 1 < len(groups):
+                    ifNode = root_name + 'R' + str(root_num) + 'A' + str(array_num + 1)
 
+                # now create this node and add it to the list of nodes to return.
+                if root_name == 'complianceConfirmation':
+               
+                    print('FUNC NODE: ', token)
+                    print('vars: ', variables)
+                    print('calls: ', calls)
+                    print('my if node: ', ifNode)
+                nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=line_number, is_constructor=is_constructor, args=arguments, ifNode=ifNode))
 
-        return [Node(token, children, variables, parent, import_tokens=import_tokens,
-                     line_number=line_number, is_constructor=is_constructor)]
+            if type(group[0]) == ast.If:
+                # create an if node using tree.name (function name) + index as token
+                #print('this should be an ast.IF: ', group)
+                # create token
+                token = root_name + 'R' + str(root_num) + 'A' + str(array_num)
+                # create name
+                name = 'IF'
+                # create condition
+                condition = group[0].test
+                # create ifTrueID
+                ifTrueID = root_name + 'R' + str(root_num + 1) + 'A' + str(0)
+                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, root_num=(root_num+1))
+                nodes_to_return += trueNodes
+                # check if ifFalse exists
+                ifFalseID = None
+                if group[0].orelse:
+                    ifFalseID = root_name + 'R' + str(root_num + 100) + 'A' + str(0)
+                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, root_num=(root_num+100))
+                    nodes_to_return += falseNodes
+        
+                # if this IfNode in list sub_bodies is not the last in the list then add cont id and connect to next item
+                ifContID = None
+                #print('group len: ', len(group))
+                if groups.index(group) + 1 < len(groups):
+                    ifContID = root_name + 'R' + str(root_num) + 'A' + str(array_num + 1)
+                    
+                nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID))
+            array_num += 1
+        # last sanity check to see what nodes we will return to caller
+        #print('nodes to return: ', nodes_to_return)
+        return nodes_to_return
 
     @staticmethod
     def make_root_node(lines, parent):
@@ -349,10 +450,11 @@ class Python(BaseLanguage):
         :rtype: Node
         """
         token = "(global)"
+        nodeName = token
         line_number = 0
-        children = make_children(lines, parent)
+        calls = make_calls(lines, parent)
         variables = make_local_variables(lines, parent)
-        return Node(token, children, variables, parent, line_number=line_number)
+        return Node(token, nodeName, calls, variables, parent, line_number=line_number)
 
     @staticmethod
     def make_class_group(tree, parent):
@@ -365,27 +467,32 @@ class Python(BaseLanguage):
         :param parent Group:
         :rtype: Group
         """
-        assert type(tree) == ast.ClassDef
-        subgroup_trees, node_trees, body_trees = Python.separate_namespaces(tree)
 
-        group_type = GROUP_TYPE.CLASS
-        token = tree.name
-        display_name = 'Class'
-        line_number = tree.lineno
+        if type(tree) == ast.ClassDef:
+    
+            # split up class node into body, nodes (functions) and subclasses
+            subgroup_trees, node_trees, body_trees = Python.separate_namespaces(tree)
 
-        import_tokens = [djoin(parent.token, token)]
-        inherits = get_inherits(tree)
+            # set group info
+            group_type = GROUP_TYPE.CLASS
+            token = tree.name
+            display_name = 'Class'
+            line_number = tree.lineno
 
-        class_group = Group(token, group_type, display_name, import_tokens=import_tokens,
-                            inherits=inherits, line_number=line_number, parent=parent)
 
-        for node_tree in node_trees:
-            class_group.add_node(Python.make_nodes(node_tree, parent=class_group)[0])
+            import_tokens = [djoin(parent.token, token)]
+            inherits = get_inherits(tree)
 
-        for subgroup_tree in subgroup_trees:
-            logging.warning("pasta does not support nested classes. Skipping %r in %r.",
-                            subgroup_tree.name, parent.token)
-        return class_group
+            class_group = Group(token, group_type, display_name, import_tokens=import_tokens,
+                                inherits=inherits, line_number=line_number, parent=parent)
+
+            for node_tree in node_trees:
+                class_group.add_node(Python.make_nodes(node_tree, parent=class_group)[0])
+
+            for subgroup_tree in subgroup_trees:
+                logging.warning("pasta does not support nested classes. Skipping %r in %r.",
+                                subgroup_tree.name, parent.token)
+            return class_group
 
     @staticmethod
     def file_import_tokens(filename):
