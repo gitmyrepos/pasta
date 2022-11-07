@@ -583,9 +583,9 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
         if type(node_a) == IfNode:
             for node_b in all_nodes:
                 if node_a.ifTrueID == node_b.token:
-                    if_edges.append(Edge(node_a, node_b))
+                    if_edges.append(Edge(node_a, node_b, color='green'))
                 if node_a.ifFalseID == node_b.token:
-                    if_edges.append(Edge(node_a, node_b))
+                    if_edges.append(Edge(node_a, node_b, color='red'))
                 if node_a.ifContID == node_b.token:
                     if_edges.append(Edge(node_a, node_b))
 
