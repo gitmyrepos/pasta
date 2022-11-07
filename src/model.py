@@ -478,15 +478,15 @@ class Node():
         }
 
 class IfNode():
-    def __init__(self, token, nodeName, condition, ifTrueID, parent, ifFalseID=None, ifContID=None, uid=None):
+    def __init__(self, token, nodeName, condition, ifTrueID, parent, ifFalseID=None, ifContID=None, uid=None, lineno=None):
         self.token = token
         self.nodeName = nodeName
-        self.condiiton = condition
+        self.condition = condition
         self.ifTrueID = ifTrueID
         self.ifFalseID = ifFalseID
         self.ifContID = ifContID
         self.parent = parent
-        self.lineno = condition.lineno
+        self.lineno = lineno
 
         if uid == None:
             self.uid = "node_" + os.urandom(4).hex()
@@ -521,7 +521,7 @@ class IfNode():
                 </TABLE>>"""
         
 
-        lbl = f"IF &#92;n {self.ifTrueID} &#92;n Ln: {self.lineno}"
+        lbl = f"IF &#92;n {self.condition} &#92;n Ln: {self.lineno}"
         
         return lbl
 

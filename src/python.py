@@ -418,7 +418,12 @@ class Python(BaseLanguage):
                 # create name
                 name = 'IF'
                 # create condition
-                condition = group[0].test
+                lineno = group[0].test.lineno
+                condition = Python.make_condition_str(group[0].test)
+                if type(condition) == ast.Compare:
+                    print('compare: ', condition.left)
+                    print('ops: ', condition.ops)
+                    print('comparators: ', condition.comparators)
                 # create ifTrueID
                 ifTrueID = "node_" + os.urandom(4).hex()
                 trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, root_num=(root_num+1), uid=ifTrueID)
@@ -436,7 +441,7 @@ class Python(BaseLanguage):
                 if groups.index(group) + 1 < len(groups):
                     ifContID = "node_" + os.urandom(4).hex()
                     
-                nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID, uid=uid))
+                nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID, uid=uid, lineno=lineno))
                 uid = ifContID
             array_num += 1
         # last sanity check to see what nodes we will return to caller
@@ -507,3 +512,122 @@ class Python(BaseLanguage):
         :rtype: list[str]
         """
         return [os.path.split(filename)[-1].rsplit('.py', 1)[0]]
+
+    @staticmethod
+    def make_condition_str(condition):
+        print('condition to parse: ', condition)
+        return_str = ''
+        if type(condition) == ast.Compare:
+            compare = condition.left
+            ops = condition.ops
+            comparators = condition.comparators
+
+            if type(compare) == ast.Call:
+                if 'ast' in str(compare.func):
+                    print('compare what???? ', compare.func)
+                    if type(compare.func) == ast.Attribute:
+                        print('compare attr: ', compare.func.attr)
+                        return_str += str(compare.func.attr)
+                    if type(compare.func) == ast.Name:
+                        print('name: ', compare.func.id)
+                        return_str += str(compare.func.id)
+
+            if type(compare) == ast.Name:
+                return_str += str(compare.id)
+
+            if len(ops) == 1:
+                if type(ops[0]) == ast.Eq:
+                    return_str += ' =='
+                if type(ops[0]) == ast.NotEq:
+                    return_str += ' !='
+                if type(ops[0]) == ast.Lt:
+                    return_str += ' <'
+                if type(ops[0]) == ast.LtE:
+                    return_str += ' <='
+                if type(ops[0]) == ast.Gt:
+                    return_str += ' >'
+                if type(ops[0]) == ast.GtE:
+                    return_str += ' >='
+                if type(ops[0]) == ast.Is:
+                    return_str += ' IS'
+                if type(ops[0]) == ast.IsNot:
+                    return_str += ' IS NOT'
+                if type(ops[0]) == ast.In:
+                    return_str += ' IN'
+                if type(ops[0]) == ast.NotIn:
+                    return_str += ' NOT IN'
+
+            else:
+                print('ops is too complicated!!!')
+
+            if len(comparators) == 1:
+                if type(comparators[0]) == ast.Constant or type(comparators[0]) == ast.Attribute:
+                    if 'ast' in str(comparators[0].value):
+                        return_str += ' ' + str(comparators[0].value.value.id)
+                    else:
+                        return_str += ' ' + str(comparators[0].value)
+                
+            else:
+                print('comparators is too complicated!!!')
+            
+            return return_str
+
+        elif type(condition) == ast.Call:
+            if 'ast' in str(condition.func):
+                print('compare what???? ', condition.func)
+                if type(condition.func) == ast.Attribute:
+                    print('compare attr: ', condition.func.attr)
+                    return_str += str(condition.func.attr)
+                if type(condition.func) == ast.Name:
+                    print('name: ', condition.func.id)
+                    return_str += str(condition.func.id)
+            return return_str
+
+        elif type(condition) == ast.BoolOp:
+            print('found a bool: ', condition.lineno)
+            print('a compare in a bool: ', Python.make_condition_str(condition.values[0]))
+            
+            op = condition.op
+
+            if 'ast.Or' in str(op):
+              
+                op = 'OR'
+            elif 'ast.And' in str(op):
+    
+                op = 'AND'
+
+            vlen = len(condition.values)
+            i = 1
+            for v in condition.values:
+                if i != 1:
+                    return_str += ' '
+                return_str += Python.make_condition_str(v)
+                if i != vlen:
+                    return_str += ' ' + str(op)
+                i += 1
+            return return_str
+        
+        elif type(condition) == ast.UnaryOp:
+            op = condition.op
+            if isinstance(op, ast.Not):
+                op = 'NOT'
+            elif isinstance(op, ast.UAdd):
+                op = '+'
+            elif isinstance(op, ast.USub):
+                op = '-'
+            elif isinstance(op, ast.Invert):
+                op = '~'
+
+            
+            operand = condition.operand
+            
+            if isinstance(operand, ast.Name):
+                operand = operand.id
+
+            return str(op) + ' ' + str(operand)
+
+        elif type(condition) == ast.Name:
+            return condition.id
+            
+        else:
+            return 'IDK'
