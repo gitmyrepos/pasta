@@ -52,18 +52,15 @@ def make_calls(lines, parent):
     :param lines list[ast]:
     :rtype: list[Call]
     """
-    #print('about to make calls elements, ', lines)
+
     calls = []
     for tree in lines:
         for element in ast.iter_child_nodes(tree):
-            #print('call element?: ', element)
             if type(element) == ast.Call:
                 call = get_call_from_func_element(element.func, parent)
                 if call:
                     calls.append(call)
-
-            
-               
+   
     return calls
 
 
@@ -76,16 +73,18 @@ def process_assign(element, parent):
     :param element ast:
     :rtype: Variable
     """
-    print('assign this for me: ', element.value)
-    if type(element.value) == ast.Constant:
-        print('found a constant!!! ', element.value.value)
+    
+    #if type(element.value) == ast.Constant:
+        #print('found a constant!!! ', element.value.value)
         #return [Variable(element.value.value, parent, element.lineno)]
 
-    if type(element.value) == ast.Attribute:
-        print('found an attr')
+    #if type(element.value) == ast.Attribute:
+        #print('found an attr')
         #return [Variable(element.value.value, parent, element.lineno)]
+
     if type(element.value) != ast.Call:
         return []
+
     call = get_call_from_func_element(element.value.func, parent)
     if not call:
         return []
@@ -94,8 +93,10 @@ def process_assign(element, parent):
     for target in element.targets:
         if type(target) != ast.Name:
             continue
+
         token = target.id
         ret.append(Variable(token, call, element.lineno))
+
     return ret
 
 
@@ -111,23 +112,18 @@ def process_import(element):
     ret = []
 
     for single_import in element.names:
-        #print("import:  ", single_import)
-
         assert isinstance(single_import, ast.alias)
         token = single_import.asname or single_import.name
         rhs = single_import.name
-        #print('token: ', token)
-        #print('rhs: ', rhs)
 
         if hasattr(element, 'module') and element.module:
             rhs = djoin(element.module, rhs)
-            #print('module: ', rhs)
+    
         ret.append(Variable(token, points_to=rhs, line_number=element.lineno))
     return ret
 
 def process_if(element):
     ret = []
-    print('processing if node, ', element)
     ret.append(Variable())
 
 def make_arguments(arguments):
@@ -137,9 +133,8 @@ def make_arguments(arguments):
 
     for arg in args_obj_list:
         
-        if arg.annotation != None:
+        #if arg.annotation != None:
             #print('arg: ', arg.arg, ' has annotation: ', arg.annotation.id)
-            x = 1
         
         arg_name_list.append(arg.arg)
 
@@ -157,50 +152,35 @@ def make_local_variables(lines, parent):
     :param parent Group:
     :rtype: list[Variable]
     """
+
     variables = []
-
-    #print('ABOUT TO CREATE VARIABLES')
-    line_types = []
-    #for ast in lines:
-    #    if ast.targets not in line_types:
-            #print(ast.targets[0].id)
-    #        line_types.append(ast.targets)
-
-    #print('Line Types: ',line_types)
-
-
-
-    #for tree in lines:
-    print('lines: ', lines)
     for element in lines:
-        print('element in body: ', element)
         if type(element) == ast.Assign:
             variables += process_assign(element, parent)
+
         if type(element) in (ast.Import, ast.ImportFrom):
             variables += process_import(element)
+
         if type(element) == ast.Expr:
-            print(element.value)
             if type(element.value) == ast.Call:
                 if type(element.value.func) == ast.Name:
                     token = element.value.func.id
                 else:
                     #assume attr
                     token = element.value.func.attr
+
             elif type(element.value) == ast.Subscript:
                 token = element.value.value.value.id
+
             elif type(element.value) == ast.Constant:
                 token = element.value.value
+
             variables += [Variable(token, parent, element.lineno)]
-        #if type(element) == ast.If:
-        #    variables += process_if(element)
+
     if parent.group_type == GROUP_TYPE.CLASS:
         variables.append(Variable('self', parent, lines[0].lineno))
 
-    #print('This is the list of vars: ', variables)
     variables = list(filter(None, variables))
-
-    #print('This is the list Filtered: ', variables)
-    print('my vars: ', variables)
     return variables
 
 
@@ -249,52 +229,31 @@ class Python(BaseLanguage):
         :rtype: (list[ast], list[ast], list[ast])
         """
 
-        #    if isinstance(code_ast, ast.AST):
-        #    print('codeAST: ', code_ast)
-        #    # This looks like if the code_ast is indeed just a single node then it will extract its data fields/attributes
-        #    #print(code_ast, ', IS an AST object!')
-        #    node = {to_camelcase(k): transform_ast(getattr(code_ast, k)) for k in code_ast._fields}
-        #    node['node_type'] = to_camelcase(code_ast.__class__.__name__)
-        #    #print(type(node))
-        #    return node
-
-
         groups = [] # classes and functions with split logic
         nodes = [] # simple functions and async functions
         body = [] # everything else
 
         for el in tree.body:
-            #print('el is type: ', type(el))
+            
             if type(el) in (ast.FunctionDef, ast.AsyncFunctionDef):
-                #print('func type:  ', type(el))
                 nodes.append(el)
-                #tup = Python.separate_namespaces(el)
-                #groups += tup[0]
-                #nodes += tup[1]
-                #body += tup[2]
-              
+                
             elif type(el) == ast.ClassDef:
                 groups.append(el)
-                #tup = Python.separate_namespaces(el)
-                #groups += tup[0]
-                #nodes += tup[1]
-                #body += tup[2]
                 
             elif getattr(el, 'body', None):
                 tup = Python.separate_namespaces(el)
-                print('we are gonna dig deeper!') # this never runs with our code...
                 groups += tup[0]
                 nodes += tup[1]
                 body += tup[2]
+
             else:
                 body.append(el)
         
-        #print('if conditions found... ', ifcons)
         return groups, nodes, body
 
     @staticmethod
     def eval_funcs(funcs):
-        print('about to eval funcs')
         simple_funcs = funcs
         complex_funcs = []
 
@@ -318,29 +277,9 @@ class Python(BaseLanguage):
         :rtype: list[Node]
         """
 
-        #nodeName = tree.name
-        #print('the token for normal nodes is:   ', type(token))
-        #arguments = make_arguments(tree.args)
-        #line_number = tree.lineno
-
-         # basically I need to find index of ifs and subnodes (statements between ifs)
-        # to create a subnode I need to know what vars are in body in index which means I should only accept body elements and calls from
-        # that section from start or If to next if or finish....
-        
-        # the outter function will determine the head function 
-        # determine substituted body...
-
-        # first check if we need to change anything at all if there even exists an IF statement
-        # this assumes there is no if, if we find one then we change body to appropriate variable
-
         if root_name == None:
             root_name = tree.name
 
-        if root_name == 'complianceConfirmation':
-            print('COMPLIANCE FOUND!!!!!!!')
-        #print('root name: ', root_name)
-
-        # assume no arguments are needed unless an ast.arguments node is found.
         arguments = None
         
         # This first checks what sort of tree is given if it is a list or ast.functionDef
@@ -363,15 +302,13 @@ class Python(BaseLanguage):
         groups = []
         for el in ungrouped_nodes:
             if type(el) == ast.If:
-                # add previous group to groups
+
                 if group != []:
                     groups.append(group)
-                # add new group for ast.If
+                
                 groups.append([el])
-                # reset group
                 group = []
             else:
-                # if the element is not an ast.If then add it to the current group
                 group.append(el)
 
         # if an ast.If was last in the ungroup_nodes then group would = [] which we don't need
@@ -379,22 +316,13 @@ class Python(BaseLanguage):
         if group != []:
             groups.append(group)
 
-
-        # Sanity check to see a list of groups in sub_bodies if the list is 1 then it's a normal node with no IF logic
-        # if the length of sub_bodies is more than 1 there should be at least 1 IfNode which requires further logic
-        #print('this is length of groups: ', len(groups))
-        if root_name == 'complianceConfirmation':
-            print('root num: ', root_num)
         # Now we analyize each sub_group of nodes and create new nodes out of them either normal function/body nodes or IfNodes
         nodes_to_return = []
         for group in groups:
             # if the group is a normal node (not an ast.If)
-            
             if type(group[0]) != ast.If:
                 # assign token (token = nodeID)
                 # assign nodeName (display name on map)
-                print('root/array: ', root_num, '/', array_num)
-                
                 if root_num == 0 and array_num == 0:
                     token = root_name
                     nodeName = root_name
@@ -405,52 +333,51 @@ class Python(BaseLanguage):
                     
                 # assign line number
                 line_number = group[0].lineno
+
                 # assign calls for this node
                 calls = make_calls(group, parent)
+
                 # assign variables for this node
                 variables = make_local_variables(group, parent)
+
                 # assign import tokens
                 import_tokens = []
                 if parent.group_type == GROUP_TYPE.FILE:
                     import_tokens = [djoin(parent.token, token)]
+
                 # assign is_constructor
                 is_constructor = False
                 if parent.group_type == GROUP_TYPE.CLASS and token in ['__init__', '__new__']:
                     is_constructor = True
+
                 # if sub_bodies len is greater than index then assign if as tree.name_if_index(of if)
                 ifNode = None
+
                 # since the current index is a normal node and if the current index is not the last in the sub_bodies list then the next index must be an IF node
                 if groups.index(group) + 1 < len(groups):
                     ifNode = "node_" + os.urandom(4).hex()
 
                 # now create this node and add it to the list of nodes to return.
-                if root_name == 'complianceConfirmation':
-               
-                    print('FUNC NODE: ', token)
-                    print('vars: ', variables)
-                    print('calls: ', calls)
-                    print('my if node: ', ifNode)
                 nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=line_number, is_constructor=is_constructor, args=arguments, ifNode=ifNode, uid=uid))
                 uid = ifNode
 
             if type(group[0]) == ast.If:
                 # create an if node using tree.name (function name) + index as token
-                #print('this should be an ast.IF: ', group)
                 # create token
                 token = root_name + 'R' + str(root_num) + 'A' + str(array_num)
+
                 # create name
                 name = 'IF'
+
                 # create condition
                 lineno = group[0].test.lineno
                 condition = Python.make_condition_str(group[0].test)
-                if type(condition) == ast.Compare:
-                    print('compare: ', condition.left)
-                    print('ops: ', condition.ops)
-                    print('comparators: ', condition.comparators)
+                
                 # create ifTrueID
                 ifTrueID = "node_" + os.urandom(4).hex()
                 trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, root_num=(root_num+1), uid=ifTrueID)
                 nodes_to_return += trueNodes
+
                 # check if ifFalse exists
                 ifFalseID = None
                 if group[0].orelse:
@@ -460,15 +387,15 @@ class Python(BaseLanguage):
         
                 # if this IfNode in list sub_bodies is not the last in the list then add cont id and connect to next item
                 ifContID = None
-                #print('group len: ', len(group))
                 if groups.index(group) + 1 < len(groups):
                     ifContID = "node_" + os.urandom(4).hex()
                     
+                # add IfNode
                 nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID, uid=uid, lineno=lineno))
                 uid = ifContID
+
             array_num += 1
-        # last sanity check to see what nodes we will return to caller
-        #print('nodes to return: ', nodes_to_return)
+
         return nodes_to_return
 
     @staticmethod
@@ -538,7 +465,6 @@ class Python(BaseLanguage):
 
     @staticmethod
     def make_condition_str(condition):
-        print('condition to parse: ', condition)
         return_str = ''
         
         if type(condition) == ast.Compare:
@@ -548,12 +474,11 @@ class Python(BaseLanguage):
 
             if type(compare) == ast.Call:
                 if 'ast' in str(compare.func):
-                    print('compare what???? ', compare.func)
+            
                     if type(compare.func) == ast.Attribute:
-                        print('compare attr: ', compare.func.attr)
                         return_str += str(compare.func.attr)
+
                     if type(compare.func) == ast.Name:
-                        print('name: ', compare.func.id)
                         return_str += str(compare.func.id)
 
             if type(compare) == ast.Name:
@@ -598,26 +523,22 @@ class Python(BaseLanguage):
 
         elif type(condition) == ast.Call:
             if 'ast' in str(condition.func):
-                print('compare what???? ', condition.func)
+                
                 if type(condition.func) == ast.Attribute:
-                    print('compare attr: ', condition.func.attr)
                     return_str += str(condition.func.attr)
+
                 if type(condition.func) == ast.Name:
-                    print('name: ', condition.func.id)
                     return_str += str(condition.func.id)
+
             return return_str
 
-        elif type(condition) == ast.BoolOp:
-            print('found a bool: ', condition.lineno)
-            print('a compare in a bool: ', Python.make_condition_str(condition.values[0]))
-            
+        elif type(condition) == ast.BoolOp:  
             op = condition.op
 
             if 'ast.Or' in str(op):
-              
                 op = 'OR'
+
             elif 'ast.And' in str(op):
-    
                 op = 'AND'
 
             vlen = len(condition.values)
@@ -642,7 +563,6 @@ class Python(BaseLanguage):
             elif isinstance(op, ast.Invert):
                 op = '~'
 
-            
             operand = condition.operand
             
             if isinstance(operand, ast.Name):

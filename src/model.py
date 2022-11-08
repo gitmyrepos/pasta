@@ -2,13 +2,11 @@ import abc
 import os
 import ast
 
-
 TRUNK_COLOR = '#966F33'
 LEAF_COLOR = '#6db33f'
 EDGE_COLORS = ["#000000", "#E69F00", "#56B4E9", "#009E73",
                "#F0E442", "#0072B2", "#D55E00", "#CC79A7"]
 NODE_COLOR = "#cccccc"
-
 
 class Namespace(dict):
     """
@@ -23,10 +21,8 @@ class Namespace(dict):
     def __getattr__(self, item):
         return self[item]
 
-
 OWNER_CONST = Namespace("UNKNOWN_VAR", "UNKNOWN_MODULE")
 GROUP_TYPE = Namespace("FILE", "CLASS", "NAMESPACE")
-
 
 def is_installed(executable_cmd):
     """
@@ -42,7 +38,6 @@ def is_installed(executable_cmd):
             return True
     return False
 
-
 def djoin(*tup):
     """
     Convenience method to join strings with dots
@@ -52,7 +47,6 @@ def djoin(*tup):
         return '.'.join(tup[0])
     return '.'.join(tup)
 
-
 def flatten(list_of_lists):
     """
     Return a list from a list of lists
@@ -60,7 +54,6 @@ def flatten(list_of_lists):
     :rtype: list[Value]
     """
     return [el for sublist in list_of_lists for el in sublist]
-
 
 def _resolve_str_variable(variable, file_groups):
     """
@@ -82,7 +75,6 @@ def _resolve_str_variable(variable, file_groups):
             if any(ot == variable.points_to for ot in group.import_tokens):
                 return group
     return OWNER_CONST.UNKNOWN_MODULE
-
 
 class BaseLanguage(abc.ABC):
     """
@@ -144,7 +136,6 @@ class BaseLanguage(abc.ABC):
         :rtype: Group
         """
 
-
 class Variable():
     """
     Variables represent named tokens that are accessible to their scope.
@@ -174,7 +165,6 @@ class Variable():
         if self.points_to and isinstance(self.points_to, (Group, Node)):
             return f'{self.token}->{self.points_to.token}'
         return f'{self.token}->{self.points_to}'
-
 
 class Call():
     """
@@ -258,7 +248,6 @@ class Call():
                and variable.points_to.get_constructor():
                 return variable.points_to.get_constructor()
         return None
-
 
 class Node():
     def __init__(self, token, nodeName, calls, variables, parent, import_tokens=None,
@@ -354,18 +343,7 @@ class Node():
         :rtype: str
         """
         if self.line_number is not None:
-            #vars_str = ''
             
-            #func_len = len(self.token) + len(str(self.line_number)) + 30
-            #print(func_len)
-            print('my vars again: ', self.variables)
-            vars_list = []
-            #arg_str = ', '.join(map(str,self.args))
-           
-            #vars_str = ', '.join(map(str,vars_list))
-            #print(len(arg_str)/func_len) 
-            #print(vars_str)
-
             tbl = f"""<<TABLE CELLSPACING='0' CELLPADDING='10' BORDER='1'>
                     <TR>
                         <TD COLSPAN='1' ALIGN='left' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
@@ -384,8 +362,6 @@ class Node():
             tbl += """</TD><TD VALIGN='TOP'>"""
 
             for var in self.variables:
-                # need to record normal vars...
-                print('var to print: ', var.token)
                 tbl += f"""{var.token}<BR ALIGN='LEFT'/>"""
 
             tbl += """</TD>
@@ -410,17 +386,11 @@ class Node():
         if line_number is None:
             ret = list(self.variables)
         else:
-            # TODO variables should be sorted by scope before line_number
             ret = list([v for v in self.variables if v.line_number <= line_number])
         if any(v.line_number for v in ret):
             ret.sort(key=lambda v: v.line_number, reverse=True)
 
         parent = self.parent
-
-        #print('line_number: ', line_number)
-        if line_number == 1047:
-            print('I found the line number........................')
-            print(self.variables)
         while parent:
             ret += parent.get_variables()
             parent = parent.parent
@@ -608,8 +578,6 @@ class IfNode():
                 and isinstance(self.parent, Group)
                 and self.parent.group_type in (GROUP_TYPE.CLASS, GROUP_TYPE.NAMESPACE))
 
-
-
 def _wrap_as_variables(sequence):
     """
     Given a list of either Nodes or Groups, wrap them in variables.
@@ -620,7 +588,6 @@ def _wrap_as_variables(sequence):
     """
     new_seq = list(filter(lambda el: type(el) == Node, sequence))
     return [Variable(el.token, el, el.line_number) for el in new_seq]
-
 
 class Edge():
     def __init__(self, node0, node1, color='black'):
@@ -661,7 +628,6 @@ class Edge():
             'target': self.node1.uid,
             'directed': True,
         }
-
 
 class Group():
     """
@@ -765,7 +731,6 @@ class Group():
         """
 
         if self.root_node:
-            #print('self is a root_node: ',self)
             variables = (self.root_node.variables
                          + _wrap_as_variables(self.subgroups)
                          + _wrap_as_variables(n for n in self.nodes if n != self.root_node))
