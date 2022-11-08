@@ -6,7 +6,6 @@ import os
 import subprocess
 import sys
 import time
-
 from .python import Python
 from .javascript import Javascript
 from .ruby import Ruby
@@ -23,7 +22,6 @@ VALID_EXTENSIONS = IMAGE_EXTENSIONS + TEXT_EXTENSIONS
 DESCRIPTION = "Generate flow charts from your source code. " \
               "See the README at https://github.com/gitmyrepos/pasta."
 
-
 LEGEND = """subgraph legend{
     rank = min;
     label = "legend";
@@ -38,7 +36,6 @@ LEGEND = """subgraph legend{
         >];
 }""" % (NODE_COLOR, TRUNK_COLOR, LEAF_COLOR)
 
-
 LANGUAGES = {
     'py': Python,
     'js': Javascript,
@@ -47,7 +44,6 @@ LANGUAGES = {
     'php': PHP,
 }
 
-
 class LanguageParams():
     """
     Shallow structure to make storing language-specific parameters cleaner
@@ -55,7 +51,6 @@ class LanguageParams():
     def __init__(self, source_type='script', ruby_version='27'):
         self.source_type = source_type
         self.ruby_version = ruby_version
-
 
 class SubsetParams():
     """
@@ -94,8 +89,6 @@ class SubsetParams():
 
         return SubsetParams(target_function, upstream_depth, downstream_depth)
 
-
-
 def _find_target_node(subset_params, all_nodes):
     """
     Find the node referenced by subset_params.target_function
@@ -115,7 +108,6 @@ def _find_target_node(subset_params, all_nodes):
         raise AssertionError("Found multiple nodes for %r: %r. Try either a `class.func` or "
                              "`filename::class.func`." % (subset_params.target_function, target_nodes))
     return target_nodes[0]
-
 
 def _filter_nodes_for_subset(subset_params, all_nodes, edges):
     """
@@ -155,7 +147,6 @@ def _filter_nodes_for_subset(subset_params, all_nodes, edges):
 
     return include_nodes
 
-
 def _filter_edges_for_subset(new_nodes, edges):
     """
     Given the subset of nodes, filter for edges within this subset
@@ -168,7 +159,6 @@ def _filter_edges_for_subset(new_nodes, edges):
         if edge.node0 in new_nodes and edge.node1 in new_nodes:
             new_edges.append(edge)
     return new_edges
-
 
 def _filter_groups_for_subset(new_nodes, file_groups):
     """
@@ -191,7 +181,6 @@ def _filter_groups_for_subset(new_nodes, file_groups):
 
     return new_file_groups
 
-
 def _filter_for_subset(subset_params, all_nodes, edges, file_groups):
     """
     Given subset_params, return the subset of nodes, edges, and groups
@@ -206,7 +195,6 @@ def _filter_for_subset(subset_params, all_nodes, edges, file_groups):
     new_edges = _filter_edges_for_subset(new_nodes, edges)
     new_file_groups = _filter_groups_for_subset(new_nodes, file_groups)
     return new_file_groups, list(new_nodes), new_edges
-
 
 def generate_json(nodes, edges):
     '''
@@ -226,7 +214,6 @@ def generate_json(nodes, edges):
         "nodes": nodes,
         "edges": edges,
     }})
-
 
 def write_file(outfile, nodes, edges, groups, hide_legend=False,
                no_grouping=False, as_json=False):
@@ -264,7 +251,6 @@ def write_file(outfile, nodes, edges, groups, hide_legend=False,
     content += '}\n'
     outfile.write(content)
 
-
 def determine_language(individual_files):
     """
     Given a list of filepaths, determine the language from the first
@@ -280,7 +266,6 @@ def determine_language(individual_files):
             return suffix
     raise AssertionError(f"Language could not be detected from input {individual_files}. ",
                          "Try explicitly passing the language flag.")
-
 
 def get_sources_and_language(raw_source_paths, language):
     """
@@ -329,7 +314,6 @@ def get_sources_and_language(raw_source_paths, language):
 
     return sources, language
 
-
 def make_file_group(tree, filename, extension):
     """
     Given an AST for the entire file, generate a file group complete with
@@ -343,21 +327,7 @@ def make_file_group(tree, filename, extension):
     """
     language = LANGUAGES[extension]
     print('filename: ', filename)
-    subgroup_trees, node_trees, body_trees = language.separate_namespaces(tree)
-
-    print('number of functions: ', len(node_trees))
-    # separating functions with If logic from ones that don't (complex = has if logic)
-    #simple_funcs, complex_funcs = language.eval_funcs(node_trees)
-    
-    #print('I got ', len(simple_funcs), ' simple funcs')
-    #print('I got ', len(complex_funcs), ' complex funcs')
-    print('I got ', len(subgroup_trees), ' subgroup trees....')
-
-    # add complex logic functions to subgroup trees to be evaluated further...
-    #subgroup_trees += complex_funcs
-    # set node trees to only include simple functions with no complex logic
-    #node_trees = simple_funcs    
-
+    subgroup_trees, node_trees, body_trees = language.separate_namespaces(tree)   
     group_type = GROUP_TYPE.FILE
     token = os.path.split(filename)[-1].rsplit('.' + extension, 1)[0]
     line_number = 0
@@ -367,21 +337,15 @@ def make_file_group(tree, filename, extension):
     file_group = Group(token, group_type, display_name, import_tokens,
                        line_number, parent=None)
     
-    #sub_nodes, if_nodes = language.eval_complex_funcs(complex_funcs, parent=file_group)
-    print('about to make nodes... ', len(node_trees))
     for node_tree in node_trees:
-        #print('trees len:  ', len(node_trees))
         for new_node in language.make_nodes(node_tree, parent=file_group):
             file_group.add_node(new_node)
 
     file_group.add_node(language.make_root_node(body_trees, parent=file_group), is_root=True)
 
-
-    # this takes class nodes and creates sub groups -- need to include complex nodes
     for subgroup_tree in subgroup_trees:
         file_group.add_subgroup(language.make_class_group(subgroup_tree, parent=file_group))
     return file_group
-
 
 def _find_link_for_call(child, node_a, all_nodes):
     """
@@ -443,7 +407,6 @@ def _find_link_for_call(child, node_a, all_nodes):
         return None, child
     return None, None
 
-
 def _find_links(node_a, all_nodes):
     """
     Iterate through the calls on node_a to find everything the node links to.
@@ -466,7 +429,6 @@ def _find_links(node_a, all_nodes):
         assert not isinstance(lfc, Group)
         links.append(lfc)
     return list(filter(None, links))
-
 
 def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_functions,
            include_only_namespaces, include_only_functions,
@@ -528,10 +490,7 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
     all_nodes = flatten(g.all_nodes() for g in file_groups)
     function_nodes = list(filter(lambda node: type(node) == Node, all_nodes))
     if_nodes = list(filter(lambda node: type(node) == IfNode, all_nodes))
-    #all_nodes = list(filter(lambda node: type(node) == Node, all_nodes))
-    #print('NEWWWWWW all nodes: ', all_nodes)
-    
-
+ 
     nodes_by_subgroup_token = collections.defaultdict(list)
     for subgroup in all_subgroups:
         if subgroup.token in nodes_by_subgroup_token:
@@ -572,21 +531,20 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
                     continue
                 edges.append(Edge(node_a, node_b))
 
-    # now looking to add edges for IfNodes
     if_edges = []
     for node_a in all_nodes:
         if type(node_a) == Node:
             if node_a.ifNode != None:
                 for node_b in if_nodes:
-                    if node_b.token == node_a.ifNode:
+                    if node_b.uid == node_a.ifNode:
                         if_edges.append(Edge(node_a, node_b))
         if type(node_a) == IfNode:
             for node_b in all_nodes:
-                if node_a.ifTrueID == node_b.token:
-                    if_edges.append(Edge(node_a, node_b))
-                if node_a.ifFalseID == node_b.token:
-                    if_edges.append(Edge(node_a, node_b))
-                if node_a.ifContID == node_b.token:
+                if node_a.ifTrueID == node_b.uid:
+                    if_edges.append(Edge(node_a, node_b, color='green', lineStyle='dashed'))
+                if node_a.ifFalseID == node_b.uid:
+                    if_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed'))
+                if node_a.ifContID == node_b.uid:
                     if_edges.append(Edge(node_a, node_b))
 
     edges += if_edges
@@ -636,7 +594,6 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
 
     return file_groups, all_nodes, edges
 
-
 def _limit_namespaces(file_groups, exclude_namespaces, include_only_namespaces):
     """
     Exclude namespaces (classes/modules) which match any of the exclude_namespaces
@@ -678,7 +635,6 @@ def _limit_namespaces(file_groups, exclude_namespaces, include_only_namespaces):
                              "because it was not found.")
     return file_groups
 
-
 def _limit_functions(file_groups, exclude_functions, include_only_functions):
     """
     Exclude nodes (functions) which match any of the exclude_functions
@@ -704,7 +660,6 @@ def _limit_functions(file_groups, exclude_functions, include_only_functions):
                              "because it was not found.")
     return file_groups
 
-
 def _generate_graphviz(output_file, extension, final_img_filename):
     """
     Write the graphviz file
@@ -723,7 +678,6 @@ def _generate_graphviz(output_file, extension, final_img_filename):
             logging.warning("*** Graphviz returned non-zero exit code! "
                             "Try running %r for more detail ***", ' '.join(command + ['-v', '-O']))
 
-
 def _generate_final_img(output_file, extension, final_img_filename, num_edges):
     """
     Write the graphviz file
@@ -735,7 +689,6 @@ def _generate_final_img(output_file, extension, final_img_filename, num_edges):
     _generate_graphviz(output_file, extension, final_img_filename)
     logging.info("Completed your flowchart! To see it, open %r.",
                  final_img_filename)
-
 
 def pasta(raw_source_paths, output_file, language=None, hide_legend=True,
               exclude_namespaces=None, exclude_functions=None,
@@ -835,7 +788,6 @@ def pasta(raw_source_paths, output_file, language=None, hide_legend=True,
     # translate to an image if that was requested
     if final_img_filename:
         _generate_final_img(output_file, extension, final_img_filename, len(edges))
-
 
 def main(sys_argv=None):
     """
