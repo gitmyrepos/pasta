@@ -590,10 +590,11 @@ def _wrap_as_variables(sequence):
     return [Variable(el.token, el, el.line_number) for el in new_seq]
 
 class Edge():
-    def __init__(self, node0, node1, color='black'):
+    def __init__(self, node0, node1, color='black', lineStyle='solid'):
         self.node0 = node0
         self.node1 = node1
         self.color = color
+        self.lineStyle = lineStyle
 
         # When we draw the edge, we know the calling function is definitely not a leaf...
         # and the called function is definitely not a trunk
@@ -616,7 +617,7 @@ class Edge():
         '''
         ret = self.node0.uid + ' -> ' + self.node1.uid
         source_color = int(self.node0.uid.split("_")[-1], 16) % len(EDGE_COLORS)
-        ret += f' [color="{self.color}" penwidth="2"]'
+        ret += f' [color="{self.color}" penwidth="2" style="{self.lineStyle}"]'
         return ret
 
     def to_dict(self):
