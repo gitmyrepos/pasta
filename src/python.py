@@ -375,14 +375,14 @@ class Python(BaseLanguage):
                 
                 # create ifTrueID
                 ifTrueID = "node_" + os.urandom(4).hex()
-                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, uid=ifTrueID)
+                trueNodes = Python.make_nodes(group[0].body, parent, root_name='TRUE ' + root_name, uid=ifTrueID)
                 nodes_to_return += trueNodes
 
                 # check if ifFalse exists
                 ifFalseID = None
                 if group[0].orelse:
                     ifFalseID = "node_" + os.urandom(4).hex()
-                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, uid=ifFalseID)
+                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name='FALSE ' + root_name, uid=ifFalseID)
                     nodes_to_return += falseNodes
         
                 # if this IfNode in list sub_bodies is not the last in the list then add cont id and connect to next item
