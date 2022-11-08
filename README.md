@@ -47,46 +47,46 @@ Usage
 To generate a DOT file, run something like:
 
 ```bash
-code2flow mypythonfile.py
+pasta mypythonfile.py
 ```
 
 Or, for Javascript:
 
 ```bash
-code2flow myjavascriptfile.js
+pasta myjavascriptfile.js
 ```
 
 You can specify multiple files or import directories:
 
 ```bash
-code2flow project/directory/source_a.js project/directory/source_b.js
+pasta project/directory/source_a.js project/directory/source_b.js
 ```
 
 ```bash
-code2flow project/directory/*.js
+pasta project/directory/*.js
 ```
 
 ```bash
-code2flow project/directory --language js
+pasta project/directory --language js
 ```
 
 To pull out a subset of the graph, try something like:
 
 ```bash
-code2flow mypythonfile.py --target-function my_func --upstream-depth=1 --downstream-depth=1
+pasta mypythonfile.py --target-function my_func --upstream-depth=1 --downstream-depth=1
 ```
 
 
 There are a ton of command line options, to see them all, run:
 
 ```bash
-code2flow --help
+pasta --help
 ```
 
-How code2flow works
+How Pasta works
 ------------
 
-Code2flow approximates the structure of projects in dynamic languages. It is *not possible* to generate a perfect callgraph for a dynamic language. 
+Pasta approximates the structure of projects in dynamic languages. It is *not possible* to generate a perfect callgraph for a dynamic language. 
 
 Detailed algorithm:
 
@@ -103,11 +103,11 @@ Detailed algorithm:
 Known limitations
 -----------------
 
-Code2flow is internally powered by ASTs. Most limitations stem from a token not being named what code2flow expects it to be named.
+Pasta is internally powered by ASTs. Most limitations stem from a token not being named what Pasta expects it to be named.
 
 * All functions without definitions are skipped. This most often happens when a file is not included.
-* Functions with identical names in different namespaces are (loudly) skipped. E.g. If you have two classes with identically named methods, code2flow cannot distinguish between these and skips them.
-* Imported functions from outside your project directory (including from standard libraries) which share names with your defined functions may not be handled correctly. Instead, when you call the imported function, code2flow will link to your local functions. For example, if you have a function `search()` and call, `import searcher; searcher.search()`, code2flow may link (incorrectly) to your defined function.
+* Functions with identical names in different namespaces are (loudly) skipped. E.g. If you have two classes with identically named methods, Pasta cannot distinguish between these and skips them.
+* Imported functions from outside your project directory (including from standard libraries) which share names with your defined functions may not be handled correctly. Instead, when you call the imported function, Pasta will link to your local functions. For example, if you have a function `search()` and call, `import searcher; searcher.search()`, Pasta may link (incorrectly) to your defined function.
 * Anonymous or generated functions are skipped. This includes lambdas and factories.
 * If a function is renamed, either explicitly or by being passed around as a parameter, it will be skipped.
 
