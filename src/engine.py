@@ -388,7 +388,7 @@ def _find_link_for_call(child, node_a, all_nodes):
             # function a() {b = Obj(); b.a()}
             if child.token == node.token and node.parent != node_a.file_group():
                 #print('child token: ', child.token)
-                #print('node token: ', node.token)
+                print('possible_node: ', node.token)
                 possible_nodes.append(node)
     else:
         for node in all_nodes:
@@ -397,13 +397,16 @@ def _find_link_for_call(child, node_a, all_nodes):
             if child.token == node.token \
                and isinstance(node.parent, Group)  \
                and node.parent.group_type == GROUP_TYPE.FILE:
+                print(child.token, ' found: ', node.token)
                 possible_nodes.append(node)
             elif child.token == node.parent.token and node.is_constructor:
+                print(child.token, ' found: ', node.token)
                 possible_nodes.append(node)
 
     if len(possible_nodes) == 1:
         return possible_nodes[0], None
     if len(possible_nodes) > 1:
+        print('bad child!!!!!!!!', len(possible_nodes))
         return None, child
     return None, None
 
@@ -419,7 +422,7 @@ def _find_links(node_a, all_nodes):
     """
 
    
-    
+
     #print('all nodes: ', all_nodes)
     links = []
     for child in node_a.calls:
