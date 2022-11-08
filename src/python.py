@@ -267,7 +267,7 @@ class Python(BaseLanguage):
         return simple_funcs, complex_funcs
 
     @staticmethod
-    def make_nodes(tree, parent, root_name=None, root_num=0, array_num=0, uid=None):
+    def make_nodes(tree, parent, root_name=None, uid=None):
         """
         Given an ast of all the lines in a function, create the node along with the
         calls and variables internal to it.
@@ -323,13 +323,13 @@ class Python(BaseLanguage):
             if type(group[0]) != ast.If:
                 # assign token (token = nodeID)
                 # assign nodeName (display name on map)
-                if root_num == 0 and array_num == 0:
+                if groups.index(group) == 0:
                     token = root_name
-                    nodeName = root_name
+                    nodeName = root_name + '()'
 
                 else:
-                    token = root_name + 'R' + str(root_num) + 'A' + str(array_num)
-                    nodeName = root_name
+                    token = root_name + '() Cont...'
+                    nodeName = root_name + '() Cont...'
                     
                 # assign line number
                 line_number = group[0].lineno
@@ -364,7 +364,7 @@ class Python(BaseLanguage):
             if type(group[0]) == ast.If:
                 # create an if node using tree.name (function name) + index as token
                 # create token
-                token = root_name + 'R' + str(root_num) + 'A' + str(array_num)
+                token = root_name
 
                 # create name
                 name = 'IF'
@@ -375,14 +375,14 @@ class Python(BaseLanguage):
                 
                 # create ifTrueID
                 ifTrueID = "node_" + os.urandom(4).hex()
-                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, root_num=(root_num+1), uid=ifTrueID)
+                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, uid=ifTrueID)
                 nodes_to_return += trueNodes
 
                 # check if ifFalse exists
                 ifFalseID = None
                 if group[0].orelse:
                     ifFalseID = "node_" + os.urandom(4).hex()
-                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, root_num=(root_num+100), uid=ifFalseID)
+                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, uid=ifFalseID)
                     nodes_to_return += falseNodes
         
                 # if this IfNode in list sub_bodies is not the last in the list then add cont id and connect to next item
@@ -393,8 +393,6 @@ class Python(BaseLanguage):
                 # add IfNode
                 nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID, uid=uid, lineno=lineno))
                 uid = ifContID
-
-            array_num += 1
 
         return nodes_to_return
 

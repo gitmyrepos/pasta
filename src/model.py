@@ -347,7 +347,7 @@ class Node():
             tbl = f"""<<TABLE CELLSPACING='0' CELLPADDING='10' BORDER='1'>
                     <TR>
                         <TD COLSPAN='1' ALIGN='left' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
-                        <TD ALIGN='right' BORDER='0'><B>{self.token}()</B></TD>
+                        <TD ALIGN='right' BORDER='0'><B>{self.nodeName}</B></TD>
                     </TR>
                     <TR>       
                         <TD ALIGN='TEXT' BORDER='1'><B>Arguments: </B></TD>
