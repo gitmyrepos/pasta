@@ -251,10 +251,9 @@ class Call():
 
 class Node():
     def __init__(self, token, nodeName, calls, variables, parent, import_tokens=None,
-                 line_number=None, is_constructor=False, args=None, ifNode=None, uid=None):
+                 line_number=None, is_constructor=False, args=None, detailNode=None, branch=None, uid=None):
         self.token = token
         self.nodeName = nodeName
-        
         self.args = args
         self.line_number = line_number
         self.variables = variables
@@ -262,7 +261,8 @@ class Node():
         self.import_tokens = import_tokens or []
         self.parent = parent
         self.is_constructor = is_constructor
-        self.ifNode = ifNode
+        self.detailNode = detailNode
+        self.branch = branch
 
         if uid == None:
             self.uid = "node_" + os.urandom(4).hex()
@@ -577,6 +577,110 @@ class IfNode():
         return (self.parent
                 and isinstance(self.parent, Group)
                 and self.parent.group_type in (GROUP_TYPE.CLASS, GROUP_TYPE.NAMESPACE))
+
+class TryNode():
+    def __init__(self, token, nodeName, tryBodyID, parent, exceptBodyIDs=None, tryContID=None, uid=None, lineno=None, import_tokens=None):
+        self.token = token
+        self.nodeName = nodeName
+        self.tryBodyID = tryBodyID
+        self.exceptBodyIDs = exceptBodyIDs
+        self.tryContID = tryContID
+        self.parent = parent
+        self.lineno = lineno
+        self.import_tokens = import_tokens or []
+
+        if uid == None:
+            self.uid = "node_" + os.urandom(4).hex()
+        else:
+            self.uid = uid
+
+        # Assume it is a leaf and a trunk. These are modified later
+        self.is_leaf = True  # it calls nothing else
+        self.is_trunk = True  # nothing calls it
+
+    def __lt__(self, other):
+        return self.name() < other.name()
+
+    def label(self):
+        """
+        Labels are what you see on the graph
+        :rtype: str
+        """
+
+        lbl = f"TRY &#92;n Ln: {self.lineno}"
+        
+        return lbl
+
+    def name(self):
+        """
+        Names exist largely for unit tests and deterministic node sorting
+        :rtype: str
+        """
+        return f"{self.first_group().filename()}::{self.token_with_ownership()}"
+
+    def first_group(self):
+        """
+        The first group that contains this node.
+        :rtype: Group
+        """
+        parent = self.parent
+        while not isinstance(parent, Group):
+            parent = parent.parent
+        return parent
+    
+    def remove_from_parent(self):
+        """
+        Remove this node from it's parent. This effectively deletes the node.
+        :rtype: None
+        """
+        self.first_group().nodes = [n for n in self.first_group().nodes if n != self]
+
+    def to_dot(self):
+        """
+        Output for graphviz (.dot) files
+        :rtype: str
+        """
+        attributes = {
+            'label': self.label(),
+            'name': self.name(),
+            'shape': "diamond",
+            'style': 'rounded,filled',
+            'fontname': 'Arial',
+            'fillcolor': 'orange',
+        }
+        if self.is_trunk:
+            attributes['fillcolor'] = TRUNK_COLOR
+        elif self.is_leaf:
+            attributes['fillcolor'] = LEAF_COLOR
+
+        ret = self.uid + ' ['
+        for k, v in attributes.items():
+            if k == 'label':
+                ret += f'{k}="{v}" '
+            else:
+                ret += f'{k}="{v}" '
+        ret += ']'
+        return ret
+
+    def token_with_ownership(self):
+        """
+        Token which includes what group this is a part of
+        :rtype: str
+        """
+        if self.is_attr():
+            return djoin(self.parent.token, self.token)
+        return self.token
+
+    def is_attr(self):
+        """
+        Whether this node is attached to something besides the file
+        :rtype: bool
+        """
+        return (self.parent
+                and isinstance(self.parent, Group)
+                and self.parent.group_type in (GROUP_TYPE.CLASS, GROUP_TYPE.NAMESPACE))
+
+
 
 def _wrap_as_variables(sequence):
     """
