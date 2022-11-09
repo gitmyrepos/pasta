@@ -369,7 +369,7 @@ class Node():
             if self.is_trunk:
                 tbl += f"""<TD BGCOLOR='WHITE' ALIGN='right' BORDER='1' SIDES='TBR'>
                                 <TABLE BORDER='0'>
-                                    <TR><TD ALIGN='right'><IMG SRC='src/assets/trunk.png'/></TD></TR>
+                                    <TR><TD ALIGN='right'><IMG SRC='assets/trunk.png'/></TD></TR>
                                     <TR><TD ALIGN='right'>Ln: {self.line_number}</TD></TR>
                                 </TABLE>
                         </TD></TR>"""
@@ -377,7 +377,7 @@ class Node():
             elif self.is_leaf:
                 tbl += f"""<TD BGCOLOR='WHITE' ALIGN='right' BORDER='1' SIDES='TBR'>
                                 <TABLE BORDER='0'>
-                                    <TR><TD ALIGN='right'><IMG SRC='src/assets/green.png'/></TD></TR>
+                                    <TR><TD ALIGN='right'><IMG SRC='assets/green.png'/></TD></TR>
                                     <TR><TD ALIGN='right'>Ln: {self.line_number}</TD></TR>
                                 </TABLE>
                         </TD></TR>"""
