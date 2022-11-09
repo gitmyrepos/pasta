@@ -251,7 +251,7 @@ class Call():
 
 class Node():
     def __init__(self, token, nodeName, calls, variables, parent, import_tokens=None,
-                 line_number=None, is_constructor=False, args=None, detailNode=None, branch=None, uid=None):
+                 line_number=None, is_constructor=False, args=[], detailNode=None, branch=None, uid=None):
         self.token = token
         self.nodeName = nodeName
         self.args = args
@@ -336,38 +336,105 @@ class Node():
             parent = parent.parent
         return djoin(ret)
 
+    def branchStyle(self):
+        
+        if self.branch == 'IF TRUE':
+            style = 'green'
+        elif self.branch == 'IF FALSE':
+            style = 'red'
+        elif self.branch == 'TRY':
+            style = 'orange'
+        elif self.branch == 'EXCEPT':
+            style = 'red'
+        else:
+            style = 'black'
+
+        return style
+
     def label(self):
         
         """
         Labels are what you see on the graph
         :rtype: str
         """
-        if self.line_number is not None:
-            
-            tbl = f"""<<TABLE CELLSPACING='0' CELLPADDING='10' BORDER='1'>
-                    <TR>
-                        <TD COLSPAN='1' ALIGN='left' BORDER='0'>Ln: <B>{self.line_number}</B></TD>
-                        <TD ALIGN='right' BORDER='0'><B>{self.nodeName}</B></TD>
-                    </TR>
-                    <TR>       
-                        <TD ALIGN='TEXT' BORDER='1'><B>Arguments: </B></TD>
-                        <TD ALIGN='TEXT' BORDER='1'><B>Variables: </B></TD>
-                    </TR>
-                    <TR>        
-                        <TD VALIGN='TOP'>"""
-            if self.args:
-                for arg in self.args.args:
+        if self.line_number != None:
+            tbl = f"""<<TABLE BGCOLOR='WHITE' CELLSPACING='0' CELLPADDING='10' BORDER='0'>
+                    <TR>"""
+                        
+            if self.branch == None:
+                tbl += f"""<TD COLSPAN='1' ALIGN='left' BORDER='1' SIDES='TLB'><B>{self.nodeName}</B></TD>"""
+            else:
+                tbl += f"""<TD BGCOLOR='WHITE' COLSPAN='1' ALIGN='left' BORDER='1' SIDES='TLB'><B><FONT COLOR='{self.branchStyle()}'>{self.branch}</FONT></B><BR ALIGN='left'/>{self.nodeName}</TD>"""
+                
+            if self.is_trunk:
+                tbl += f"""<TD BGCOLOR='WHITE' ALIGN='right' BORDER='1' SIDES='TBR'>
+                                <TABLE BORDER='0'>
+                                    <TR><TD ALIGN='right'><IMG SRC='src/assets/trunk.png'/></TD></TR>
+                                    <TR><TD ALIGN='right'>Ln: {self.line_number}</TD></TR>
+                                </TABLE>
+                        </TD></TR>"""
+
+            elif self.is_leaf:
+                tbl += f"""<TD BGCOLOR='WHITE' ALIGN='right' BORDER='1' SIDES='TBR'>
+                                <TABLE BORDER='0'>
+                                    <TR><TD ALIGN='right'><IMG SRC='src/assets/green.png'/></TD></TR>
+                                    <TR><TD ALIGN='right'>Ln: {self.line_number}</TD></TR>
+                                </TABLE>
+                        </TD></TR>"""
+
+            else:
+                tbl += f"""<TD BGCOLOR='WHITE' ALIGN='right' BORDER='1' SIDES='TBR'>Ln: {self.line_number}</TD></TR>"""
+
+
+            if self.variables != [] and self.args != []:
+                tbl += """<TR>       
+                                <TD ALIGN='TEXT' BORDER='1'><B>Arguments:</B></TD>
+                                <TD ALIGN='TEXT' BORDER='1'><B>Variables:</B></TD>
+                            </TR>
+                            <TR>        
+                                <TD BORDER='1' COLSPAN='1' VALIGN='TOP'>"""
+
+                for arg in self.args:
                     tbl += f"""{arg.arg}<BR ALIGN='LEFT'/>"""
 
-            tbl += """</TD><TD VALIGN='TOP'>"""
+                tbl += """</TD><TD BORDER='1' VALIGN='TOP'>"""
 
-            for var in self.variables:
-                tbl += f"""{var.token}<BR ALIGN='LEFT'/>"""
+                for var in self.variables:
+                    tbl += f"""{var.token}<BR ALIGN='LEFT'/>"""
 
-            tbl += """</TD>
-                    </TR>
-                </TABLE>>"""
+                tbl += """</TD>
+                        </TR>"""
+
+            elif self.variables != []:
+                tbl += """<TR>       
+                                <TD COLSPAN='2' ALIGN='TEXT' BORDER='1'><B>Variables:</B></TD>
+                            </TR>
+                            <TR>        
+                                <TD COLSPAN='2' VALIGN='TOP' BORDER='1'>"""
+
+                for var in self.variables:
+                    tbl += f"""{var.token}<BR ALIGN='LEFT'/>"""
+
+                tbl += """</TD>
+                        </TR>"""
+
+            elif self.args != []:
+                tbl += """<TR>       
+                                <TD COLSPAN='2' ALIGN='TEXT' BORDER='1'><B>Arguments:</B></TD>
+                            </TR>
+                            <TR>        
+                                <TD COLSPAN='2' VALIGN='TOP' BORDER='1'>"""
+
+                for arg in self.args:
+                    tbl += f"""{arg.arg}<BR ALIGN='LEFT'/>"""
+
+                tbl += """</TD>
+                        </TR>"""
+
+            tbl += """</TABLE>>"""
+
             return tbl.strip('"')
+                
         return f"{self.token}()"
 
     def remove_from_parent(self):
@@ -433,6 +500,7 @@ class Node():
             'shape': "plaintext",
             'style': 'rounded,filled',
             'fontname': 'Arial',
+           
             'fillcolor': NODE_COLOR,
         }
         if self.is_trunk:
@@ -694,11 +762,12 @@ def _wrap_as_variables(sequence):
     return [Variable(el.token, el, el.line_number) for el in new_seq]
 
 class Edge():
-    def __init__(self, node0, node1, color='black', lineStyle='solid'):
+    def __init__(self, node0, node1, color='black', lineStyle='solid', tailLabel='', ):
         self.node0 = node0
         self.node1 = node1
         self.color = color
         self.lineStyle = lineStyle
+        self.tailLabel = tailLabel
 
         # When we draw the edge, we know the calling function is definitely not a leaf...
         # and the called function is definitely not a trunk
@@ -721,7 +790,7 @@ class Edge():
         '''
         ret = self.node0.uid + ' -> ' + self.node1.uid
         source_color = int(self.node0.uid.split("_")[-1], 16) % len(EDGE_COLORS)
-        ret += f' [color="{self.color}" penwidth="2" style="{self.lineStyle}"]'
+        ret += f' [color="{self.color}" penwidth="2" style="{self.lineStyle}" taillabel="{self.tailLabel}"]'
         return ret
 
     def to_dict(self):
