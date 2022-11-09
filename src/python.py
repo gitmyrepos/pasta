@@ -3,7 +3,7 @@ import logging
 import os
 import inspect
 
-from .model import (OWNER_CONST, GROUP_TYPE, Group, Node, Call, Variable, IfNode,
+from .model import (OWNER_CONST, GROUP_TYPE, Group, Node, Call, Variable, IfNode, TryNode,
                     BaseLanguage, djoin)
 
 
@@ -267,7 +267,7 @@ class Python(BaseLanguage):
         return simple_funcs, complex_funcs
 
     @staticmethod
-    def make_nodes(tree, parent, root_name=None, uid=None):
+    def make_nodes(tree, parent, root_name=None, branch=None, uid=None):
         """
         Given an ast of all the lines in a function, create the node along with the
         calls and variables internal to it.
@@ -301,7 +301,7 @@ class Python(BaseLanguage):
         group = []
         groups = []
         for el in ungrouped_nodes:
-            if type(el) == ast.If:
+            if type(el) == ast.If or type(el) == ast.Try:
 
                 if group != []:
                     groups.append(group)
@@ -316,23 +316,66 @@ class Python(BaseLanguage):
         if group != []:
             groups.append(group)
 
+
+        
+
+        # create head function 
         # Now we analyize each sub_group of nodes and create new nodes out of them either normal function/body nodes or IfNodes
+        
+        index = 0
         nodes_to_return = []
         for group in groups:
             # if the group is a normal node (not an ast.If)
-            if type(group[0]) != ast.If:
-                # assign token (token = nodeID)
-                # assign nodeName (display name on map)
-                if groups.index(group) == 0:
+            if index == 0:
+                # create head function no matter what first group is...
+                
+                if branch == None:
                     token = root_name
                     nodeName = root_name + '()'
-
                 else:
-                    token = root_name + '() Cont...'
+                    token = branch + ' branch: ' + root_name
                     nodeName = root_name + '() Cont...'
+
+                lineno = group[0].lineno
+
+                if type(group[0]) != ast.If and type(group[0]) != ast.Try:
+                    calls = make_calls(group, parent)
+                    variables = make_local_variables(group, parent)
+                else:
+                    # if the first group is an if or try then there are no immediate calls or variables
+                    calls = []
+                    variables = []
+                
+                # assign import tokens
+                import_tokens = []
+                if parent.group_type == GROUP_TYPE.FILE:
+                    import_tokens = [djoin(parent.token, token)]
+
+                # assign is_constructor
+                is_constructor = False
+                if parent.group_type == GROUP_TYPE.CLASS and token in ['__init__', '__new__']:
+                    is_constructor = True
+
+                # if sub_bodies len is greater than index then assign if as tree.name_if_index(of if)
+                detailNode = None
+
+                # since the current index is a normal node and if the current index is not the last in the sub_bodies list then the next index must be an IF node
+                if len(groups) > 1 or (type(group[0]) == ast.If or type(group[0]) == ast.Try):
+                    print('CREATED HEAD NODE AND WILL CONTINUE!!!')
+                    detailNode = "node_" + os.urandom(4).hex()
+
+                # now create this node and add it to the list of nodes to return.
+                nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=lineno, is_constructor=is_constructor, args=arguments, detailNode=detailNode, branch=branch, uid=uid))
+                uid = detailNode
+
+            if type(group[0]) != ast.If and type(group[0]) != ast.Try and index != 0:
+                # assign token (token = nodeID)
+                # assign nodeName (display name on map)
+                token = root_name + '() Cont...'
+                nodeName = root_name + '() Cont...'
                     
                 # assign line number
-                line_number = group[0].lineno
+                lineno = group[0].lineno
 
                 # assign calls for this node
                 calls = make_calls(group, parent)
@@ -351,15 +394,15 @@ class Python(BaseLanguage):
                     is_constructor = True
 
                 # if sub_bodies len is greater than index then assign if as tree.name_if_index(of if)
-                ifNode = None
+                detailNode = None
 
                 # since the current index is a normal node and if the current index is not the last in the sub_bodies list then the next index must be an IF node
                 if groups.index(group) + 1 < len(groups):
-                    ifNode = "node_" + os.urandom(4).hex()
+                    detailNode = "node_" + os.urandom(4).hex()
 
                 # now create this node and add it to the list of nodes to return.
-                nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=line_number, is_constructor=is_constructor, args=arguments, ifNode=ifNode, uid=uid))
-                uid = ifNode
+                nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=lineno, is_constructor=is_constructor, args=None, detailNode=detailNode, branch=None, uid=uid))
+                uid = detailNode
 
             if type(group[0]) == ast.If:
                 # create an if node using tree.name (function name) + index as token
@@ -375,14 +418,14 @@ class Python(BaseLanguage):
                 
                 # create ifTrueID
                 ifTrueID = "node_" + os.urandom(4).hex()
-                trueNodes = Python.make_nodes(group[0].body, parent, root_name='TRUE ' + root_name, uid=ifTrueID)
+                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, branch='TRUE', uid=ifTrueID)
                 nodes_to_return += trueNodes
 
                 # check if ifFalse exists
                 ifFalseID = None
                 if group[0].orelse:
                     ifFalseID = "node_" + os.urandom(4).hex()
-                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name='FALSE ' + root_name, uid=ifFalseID)
+                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, branch='FALSE', uid=ifFalseID)
                     nodes_to_return += falseNodes
         
                 # if this IfNode in list sub_bodies is not the last in the list then add cont id and connect to next item
@@ -393,6 +436,38 @@ class Python(BaseLanguage):
                 # add IfNode
                 nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID, uid=uid, lineno=lineno))
                 uid = ifContID
+
+            if type(group[0]) == ast.Try:
+                token = root_name
+                nodeName = 'TRY'
+                lineno = group[0].lineno # not sure about this working
+
+                # create TryBodyID
+                tryBodyID = "node_" + os.urandom(4).hex()
+                tryNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, branch='TRY', uid=tryBodyID)
+                nodes_to_return += tryNodes
+
+                # create exceptions
+                exceptBodyIDs = []
+                print('how many handlers? ', len(group[0].handlers))
+                i = 0
+                for expt in group[0].handlers:
+                    print('except!!')
+                    exceptBodyID = "node_" + os.urandom(4).hex()
+                    exceptNodes = Python.make_nodes(expt.body, parent, root_name=root_name, branch='EXCEPT', uid=exceptBodyID)
+                    nodes_to_return += exceptNodes
+                    exceptBodyIDs.append(exceptBodyID)
+                    i += 1
+
+                # if this try node in list groups is not the last in the list then add cont id and connect to next item
+                tryContID = None
+                if groups.index(group) + 1 < len(groups):
+                    tryContID = "node_" + os.urandom(4).hex()
+
+                nodes_to_return.append(TryNode(token, nodeName, tryBodyID, parent, exceptBodyIDs=exceptBodyIDs, tryContID=tryContID, lineno=lineno, uid=uid))
+                uid = tryContID
+            
+            index += 1
 
         return nodes_to_return
 

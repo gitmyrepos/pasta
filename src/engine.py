@@ -11,7 +11,7 @@ from .javascript import Javascript
 from .ruby import Ruby
 from .php import PHP
 from .model import (TRUNK_COLOR, LEAF_COLOR, NODE_COLOR, GROUP_TYPE, OWNER_CONST,
-                    Edge, Group, Node, IfNode, Variable, is_installed, flatten)
+                    Edge, Group, Node, IfNode, TryNode, Variable, is_installed, flatten)
 
 VERSION = '2.5.0'
 
@@ -493,6 +493,7 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
     all_nodes = flatten(g.all_nodes() for g in file_groups)
     function_nodes = list(filter(lambda node: type(node) == Node, all_nodes))
     if_nodes = list(filter(lambda node: type(node) == IfNode, all_nodes))
+    try_nodes = list(filter(lambda node: type(node) == TryNode, all_nodes))
  
     nodes_by_subgroup_token = collections.defaultdict(list)
     for subgroup in all_subgroups:
@@ -532,26 +533,66 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
                     bad_calls.append(bad_call)
                 if not node_b:
                     continue
-                edges.append(Edge(node_a, node_b))
+                edges.append(Edge(node_a, node_b, color='blue', lineStyle='dashed'))
 
-    if_edges = []
+    # if_edges = []
+    # for node_a in all_nodes:
+    #     if type(node_a) == Node:
+    #         if node_a.ifNode != None:
+    #             for node_b in if_nodes:
+    #                 if node_b.uid == node_a.ifNode:
+    #                     if_edges.append(Edge(node_a, node_b))
+    #     if type(node_a) == IfNode:
+    #         for node_b in all_nodes:
+    #             if node_a.ifTrueID == node_b.uid:
+    #                 if_edges.append(Edge(node_a, node_b, color='green', lineStyle='dashed'))
+    #             if node_a.ifFalseID == node_b.uid:
+    #                 if_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed'))
+    #             if node_a.ifContID == node_b.uid:
+    #                 if_edges.append(Edge(node_a, node_b))
+                
+    # edges += if_edges
+
+    # try_edges = []
+    # for node_a in all_nodes:
+    #     if type(node_a) == Node:
+    #         if node_a.ifNode != None:
+    #             for node_b in try_nodes:
+    #                 if node_b.uid == node_a.ifNode:
+    #                     try_edges.append(Edge(node_a, node_b))
+    #     if type(node_a) == TryNode:
+    #         for
+
+    detail_edges = []
     for node_a in all_nodes:
         if type(node_a) == Node:
-            if node_a.ifNode != None:
-                for node_b in if_nodes:
-                    if node_b.uid == node_a.ifNode:
-                        if_edges.append(Edge(node_a, node_b))
-        if type(node_a) == IfNode:
+            if node_a.detailNode != None:
+                for node_b in all_nodes:
+                    if node_b.uid == node_a.detailNode:
+                        detail_edges.append(Edge(node_a, node_b))
+        if type(node_a) != Node:
             for node_b in all_nodes:
-                if node_a.ifTrueID == node_b.uid:
-                    if_edges.append(Edge(node_a, node_b, color='green', lineStyle='dashed'))
-                if node_a.ifFalseID == node_b.uid:
-                    if_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed'))
-                if node_a.ifContID == node_b.uid:
-                    if_edges.append(Edge(node_a, node_b))
+                if type(node_a) == IfNode:
+                    if node_a.ifTrueID == node_b.uid:
+                        detail_edges.append(Edge(node_a, node_b, color='green', lineStyle='dashed'))
+                    if node_a.ifFalseID == node_b.uid:
+                        detail_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed'))
+                    if node_a.ifContID == node_b.uid:
+                        detail_edges.append(Edge(node_a, node_b))
+                if type(node_a) == TryNode:
+                    if node_a.tryBodyID == node_b.uid:
+                        detail_edges.append(Edge(node_a, node_b, color='orange', lineStyle='solid'))
+                    if node_a.exceptBodyIDs != []:
+                        for expt in node_a.exceptBodyIDs:
+                            if expt == node_b.uid:
+                                detail_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed'))
+                    if node_a.tryContID == node_b.uid:
+                        detail_edges.append(Edge(node_a, node_b))
 
-    edges += if_edges
-    print('found this many ifNode edges: ', len(if_edges))
+    edges += detail_edges
+
+
+    print('found this many detail_edges: ', len(detail_edges))
     print('I found the bad calls:   ', bad_calls)
     print('I found this many edges:  ', len(edges))
     print('but I have this many nodes:  ', len(all_nodes))
