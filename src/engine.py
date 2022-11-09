@@ -533,7 +533,7 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
                     bad_calls.append(bad_call)
                 if not node_b:
                     continue
-                edges.append(Edge(node_a, node_b, color='blue', lineStyle='dashed'))
+                edges.append(Edge(node_a, node_b, color='blue', lineStyle='dashed', tailLabel='CALL'))
 
     # if_edges = []
     # for node_a in all_nodes:
@@ -574,20 +574,20 @@ def map_it(sources, extension, no_trimming, exclude_namespaces, exclude_function
             for node_b in all_nodes:
                 if type(node_a) == IfNode:
                     if node_a.ifTrueID == node_b.uid:
-                        detail_edges.append(Edge(node_a, node_b, color='green', lineStyle='dashed'))
+                        detail_edges.append(Edge(node_a, node_b, color='green', lineStyle='dashed', tailLabel=''))
                     if node_a.ifFalseID == node_b.uid:
-                        detail_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed'))
+                        detail_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed', tailLabel=''))
                     if node_a.ifContID == node_b.uid:
-                        detail_edges.append(Edge(node_a, node_b))
+                        detail_edges.append(Edge(node_a, node_b, tailLabel=''))
                 if type(node_a) == TryNode:
                     if node_a.tryBodyID == node_b.uid:
-                        detail_edges.append(Edge(node_a, node_b, color='orange', lineStyle='solid'))
+                        detail_edges.append(Edge(node_a, node_b, color='orange', lineStyle='solid', tailLabel=''))
                     if node_a.exceptBodyIDs != []:
                         for expt in node_a.exceptBodyIDs:
                             if expt == node_b.uid:
-                                detail_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed'))
+                                detail_edges.append(Edge(node_a, node_b, color='red', lineStyle='dashed', tailLabel=''))
                     if node_a.tryContID == node_b.uid:
-                        detail_edges.append(Edge(node_a, node_b))
+                        detail_edges.append(Edge(node_a, node_b, tailLabel=''))
 
     edges += detail_edges
 

@@ -280,7 +280,7 @@ class Python(BaseLanguage):
         if root_name == None:
             root_name = tree.name
 
-        arguments = None
+        arguments = []
         
         # This first checks what sort of tree is given if it is a list or ast.functionDef
         # and puts all child elements into a list if necessary (excluding arguments)
@@ -289,10 +289,11 @@ class Python(BaseLanguage):
         if type(tree) == ast.FunctionDef:
             for el in ast.iter_child_nodes(tree):
                 if type(el) == ast.arguments:
-                    arguments = el
+                    arguments = el.args
                 else:
                     ungrouped_nodes.append(el)
 
+        print('these are the args: ', arguments)
         # if the tree given is a list (body of previous function/if element) then just use the list
         if type(tree) == list:
             ungrouped_nodes = tree
@@ -334,7 +335,7 @@ class Python(BaseLanguage):
                     nodeName = root_name + '()'
                 else:
                     token = branch + ' branch: ' + root_name
-                    nodeName = root_name + '() Cont...'
+                    nodeName = root_name + '()'
 
                 lineno = group[0].lineno
 
@@ -367,12 +368,13 @@ class Python(BaseLanguage):
                 # now create this node and add it to the list of nodes to return.
                 nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=lineno, is_constructor=is_constructor, args=arguments, detailNode=detailNode, branch=branch, uid=uid))
                 uid = detailNode
+                branch = 'CONTINUE'
 
             if type(group[0]) != ast.If and type(group[0]) != ast.Try and index != 0:
                 # assign token (token = nodeID)
                 # assign nodeName (display name on map)
-                token = root_name + '() Cont...'
-                nodeName = root_name + '() Cont...'
+                token = root_name + '()'
+                nodeName = root_name + '()'
                     
                 # assign line number
                 lineno = group[0].lineno
@@ -401,8 +403,9 @@ class Python(BaseLanguage):
                     detailNode = "node_" + os.urandom(4).hex()
 
                 # now create this node and add it to the list of nodes to return.
-                nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=lineno, is_constructor=is_constructor, args=None, detailNode=detailNode, branch=None, uid=uid))
+                nodes_to_return.append(Node(token, nodeName, calls, variables, parent, import_tokens=import_tokens, line_number=lineno, is_constructor=is_constructor, args=[], detailNode=detailNode, branch=branch, uid=uid))
                 uid = detailNode
+                branch = 'CONTINUE'
 
             if type(group[0]) == ast.If:
                 # create an if node using tree.name (function name) + index as token
@@ -418,14 +421,14 @@ class Python(BaseLanguage):
                 
                 # create ifTrueID
                 ifTrueID = "node_" + os.urandom(4).hex()
-                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, branch='TRUE', uid=ifTrueID)
+                trueNodes = Python.make_nodes(group[0].body, parent, root_name=root_name, branch='IF TRUE', uid=ifTrueID)
                 nodes_to_return += trueNodes
 
                 # check if ifFalse exists
                 ifFalseID = None
                 if group[0].orelse:
                     ifFalseID = "node_" + os.urandom(4).hex()
-                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, branch='FALSE', uid=ifFalseID)
+                    falseNodes = Python.make_nodes(group[0].orelse, parent, root_name=root_name, branch='IF FALSE', uid=ifFalseID)
                     nodes_to_return += falseNodes
         
                 # if this IfNode in list sub_bodies is not the last in the list then add cont id and connect to next item
@@ -436,6 +439,7 @@ class Python(BaseLanguage):
                 # add IfNode
                 nodes_to_return.append(IfNode(token, name, condition, ifTrueID, parent, ifFalseID=ifFalseID, ifContID=ifContID, uid=uid, lineno=lineno))
                 uid = ifContID
+                branch = 'CONTINUE'
 
             if type(group[0]) == ast.Try:
                 token = root_name
@@ -466,6 +470,7 @@ class Python(BaseLanguage):
 
                 nodes_to_return.append(TryNode(token, nodeName, tryBodyID, parent, exceptBodyIDs=exceptBodyIDs, tryContID=tryContID, lineno=lineno, uid=uid))
                 uid = tryContID
+                branch = 'CONTINUE'
             
             index += 1
 
