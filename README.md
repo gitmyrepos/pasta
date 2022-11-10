@@ -2,26 +2,15 @@
 
 This Project is a fork of [code2flow](https://github.com/scottrogowski/code2flow).
 
-## The purpose of PASTA
+
+
+## The Purpose of PASTA
 
 code2flow primarily focused on building [call graphs](https://en.wikipedia.org/wiki/Call_graph), while the focus of this project is to build out a detailed [AST](https://en.wikipedia.org/wiki/Abstract_syntax_tree) diagram. Because of this change in purpose, it seemed right to fork rather than submit major changes to the original project.
 
 Furthermore, the main codebase I currently use is Python. So the focus of this fork will be detailing Python codebases into ASTs, hence (PYTHON abstract syntax trees assistant).
 
-#### Note
-
-Although this project is focused on Python codebases, other code2flow programming languages (JS, Ruby and PHP) should be backwards compatiable (but will only detail a simple call graph). Feel free to fork or submit a PR to add further functionality to JS, Ruby and PHP.
-
----
-
-The basic algorithm is simple:
-
-1. Translate your source files into ASTs.
-1. Find all function definitions.
-1. Determine where those functions are called.
-1. Connect the dots. 
-
-Pasta is useful for:
+#### Pasta is useful for:
 - Untangling spaghetti code (The inspiration of the project's name).
 - Identifying orphaned functions.
 - Identifying arguments passed into functions.
@@ -31,9 +20,16 @@ Pasta is useful for:
 
 Pasta provides a *pretty good estimate* of your project's structure but there may be some issues in identifying nodes, certian variables. These issues will be a further focus of improvement in Pasta.
 
----
+#### Note
 
-If you don't have it already, you will also need to install graphviz. Installation instructions can be found [here](https://graphviz.org/download/).
+Although this project is focused on Python codebases, other code2flow programming languages (JS, Ruby and PHP) should be backwards compatiable (but will only detail a simple call graph). Feel free to fork or submit a PR to add further functionality to JS, Ruby and PHP.
+
+
+
+## Setting Up PASTA
+
+1. If you don't have it already, you will also need to install graphviz. Installation instructions can be found [here](https://graphviz.org/download/).
+2. For now, the best method to install PASTA is to download the source files directly and running the script.
 
 Additionally, depending on the language you want to parse, you may need to install additional dependencies:
 - JavaScript: [Acorn](https://www.npmjs.com/package/acorn)
@@ -41,8 +37,8 @@ Additionally, depending on the language you want to parse, you may need to insta
 - PHP: [PHP-Parser](https://github.com/nikic/PHP-Parser)
 - Python: No extra dependencies needed
 
-Usage
------
+
+## Using PASTA
 
 To generate a DOT file, run something like:
 
@@ -50,30 +46,29 @@ To generate a DOT file, run something like:
 pasta mypythonfile.py
 ```
 
-Or, for Javascript:
-
-```bash
-pasta myjavascriptfile.js
-```
-
 You can specify multiple files or import directories:
 
 ```bash
-pasta project/directory/source_a.js project/directory/source_b.js
+pasta project/directory/source_a.py project/directory/source_b.py
 ```
 
 ```bash
-pasta project/directory/*.js
+pasta project/directory/*.py
 ```
 
-```bash
-pasta project/directory --language js
-```
 
 To pull out a subset of the graph, try something like:
 
 ```bash
 pasta mypythonfile.py --target-function my_func --upstream-depth=1 --downstream-depth=1
+```
+
+
+The output will always generate an out.gv file (graphviz) and a default out.png file
+To output to svg, dot or json:
+
+```bash
+pasta mypythonfile.py --output out.svg
 ```
 
 
@@ -83,25 +78,27 @@ There are a ton of command line options, to see them all, run:
 pasta --help
 ```
 
-How Pasta works
-------------
+
+
+## How PASTA Works
 
 Pasta approximates the structure of projects in dynamic languages. It is *not possible* to generate a perfect callgraph for a dynamic language. 
 
 Detailed algorithm:
 
 1. Generate an AST of the source code
-2. Recursively separate groups and nodes. Groups are files, modules, or classes. More precisely, groups are namespaces where functions live. Nodes are the functions themselves.
-3. For all nodes, identify function calls in those nodes.
+2. Recursively separate groups and nodes. Groups are files, modules, or classes. More precisely, groups are namespaces where functions live. Nodes are the functions themselves and the details inside functions like If/Else, Try/Except etc.
+3. For all function nodes, identify function calls in those nodes.
 4. For all nodes, identify in-scope variables. Attempt to connect those variables to specific nodes and groups. This is where there is some ambiguity in the algorithm because it is impossible to know the types of variables in dynamic languages. So, instead, heuristics must be used.
 5. For all calls in all nodes, attempt to find a match from the in-scope variables. This will be an edge.
-6. If a definitive match from in-scope variables cannot be found, attempt to find a single match from all other groups and nodes.
-7. Trim orphaned nodes and groups.
-8. Output results.
+6. For all other details inside of function Nodes, find the links to sub-node branches for If/Else, Try/Except Logic etc.
+7. If a definitive match from in-scope variables cannot be found, attempt to find a single match from all other groups and nodes.
+8. Trim orphaned nodes and groups.
+9. Output results.
 
 
-Known limitations
------------------
+
+## Known Limitations
 
 Pasta is internally powered by ASTs. Most limitations stem from a token not being named what Pasta expects it to be named.
 
